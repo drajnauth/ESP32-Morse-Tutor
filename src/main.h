@@ -16,12 +16,24 @@
 
 //===================================  Wireless Constants
 //===============================
+// Removed by VE3OOI
 #define CHANNEL 1               // Wifi channel number
 #define WIFI_SSID "W8BH Tutor"  // Wifi network name
 #define WIFI_PWD "9372947313"   // Wifi password
 #define MAXBUFLEN 100           // size of incoming character buffer
 #define CMD_ADDME 0x11          // request to add this unit as a peer
 #define CMD_LEAVING 0x12        // flag this unit as leaving
+// Added by VE3OOI
+// Connection Flags and defines
+#define AP_CONNECTED  0x1       // Flag: connected to WiFi AP
+#define DNS_CONNECTED  0x2      // Flag: connected to DNS and Querry OK
+#define SRV_CONNECTED  0x4      // Flag: connected to WiFi AP 
+#define WIFI_TIMEOUT 30         // Timeout in 500ms increments to timeout connecting to Access Point
+
+
+// Processing MQTT
+#define MQTT_DELIMETER ':'
+
 
 //===================================  Morse Code Constants
 //=============================
@@ -85,244 +97,139 @@
 #define ELEMENTS(x) \
   (sizeof(x) / sizeof(x[0]))  // Handy macro for determining array sizes
 
+
+
+// Added by VE3OOI
+// Function Prototypes
+void MQTTcallback(char *topic, byte *payload, unsigned int len);
+
 void enQueue(char ch);
-
 char deQueue(void);
-
 void initESPNow(void);
-
 void configDeviceAP(void);
-
 void setStatusLED(int color);
-
 void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status);
-
 void onDataRecv(const uint8_t *mac_add, const uint8_t *data, int data_len);
-
 bool networkFound(void);
-
 void addPeer2(const uint8_t *peerMacAddress);
-
 void addPeer(void);
-
 void sendWireless(uint8_t data);
-
 void sendAddPeerCmd(void);
-
 void closeWireless(void);
-
 void initWireless(void);
 
+//////
 void buttonISR(void);
-
 void rotaryISR(void);
-
 boolean buttonDown(void);
-
 void waitForButtonRelease(void);
-
 void waitForButtonPress(void);
-
 bool longPress(void);
-
 int readEncoder(int numTicks);
-
 void keyUp(void);
-
 void keyDown(void);
-
 bool ditPressed(void);
-
 bool dahPressed(void);
 
+//////
 int extracharDit(void);
-
 int intracharDit(void);
-
 void characterSpace(void);
-
 void wordSpace(void);
-
 void dit(void);
-
 void dah(void);
-
 void sendElements(int x);
-
 void roger(void);
-
 void sendCharacter(char c);
-
 void sendString(char *ptr);
-
 void sendMorseWord(char *ptr);
-
 void displayWPM(void);
-
 void checkForSpeedChange(void);
-
 void checkPause(void);
-
 void sendKochLesson(int lesson);
-
 void introLesson(int lesson);
-
 int getLessonNumber(void);
-
 void sendKoch(void);
-
 void addChar(char *str, char ch);
-
 char randomLetter(void);
-
 char randomNumber(void);
-
 void randomCallsign(char *call);
-
 void randomRST(char *rst);
-
 void sendNumbers(void);
-
 void sendLetters(void);
-
 void sendMixedChars(void);
-
 void sendPunctuation(void);
-
 void sendWords(void);
-
 void sendCallsigns(void);
-
 void sendQSO(void);
 
+//////
 int getFileList(char list[][FNAMESIZE]);
-
 void displayFiles(char menu[][FNAMESIZE], int top, int itemCount);
-
 int fileMenu(char menu[][FNAMESIZE], int itemCount);
-
 void sendFile(char *filename);
-
 void sendFromSD(void);
 
+//////
 void checkSpeed(void);
-
 int decode(int code);
-
 char paddleInput(void);
-
 char straightKeyInput(void);
-
 char morseInput(void);
-
 void practice(void);
-
 void copyCallsigns(void);
-
 void copyOneChar(void);
-
 void copyTwoChars(void);
-
 void copyWords(void);
-
 void encourageUser(void);
-
 void displayNumber(int num, int color, int x, int y, int wd, int ht);
-
 void showScore(void);
-
 void mimic1(char *text);
-
 void showHitsAndMisses(int hits, int misses);
-
 void headCopy(void);
-
 void hitTone(void);
-
 void missTone(void);
-
 void mimic2(char *text);
-
 void mimic(char *text);
-
 void flashcards(void);
 
 void twoWay(void);
-
 void printConfig(void);
-
 void saveConfig(void);
-
 void loadConfig(void);
-
 void checkConfig(void);
-
 void useDefaults(void);
-
 char *ltrim(char *str);
-
 void selectionString(int choice, char *str);
-
 void showMenuChoice(int choice);
-
 void changeStartup(void);
-
 void changeBackground(void);
-
 void changeTextColor(void);
-
 void changeBrightness(void);
-
 void setScreen(void);
-
 void setCodeSpeed(void);
-
 void setFarnsworth(void);
-
 void setExtraWordDelay(void);
-
 void setSpeed(void);
-
 void setPitch(void);
-
 void configKey(void);
-
 void setCallsign(void);
-
 void clearMenu(void);
-
 void clearBody(void);
-
 void clearScreen(void);
-
 void newScreen(void);
-
 void showCharacter(char c, int row, int col);
-
 void addCharacter(char c);
-
 int getMenuSelection(void);
-
 void setTopMenu(char *str);
-
 void showSelection(int choice);
-
 void showMenuItem(char *item, int x, int y, int fgColor, int bgColor);
-
 int topMenu(char *menu[], int itemCount);
-
 void displayFrame(char *menu[], int top, int itemCount);
-
 int subMenu(char *menu[], int itemCount);
-
 void setBrightness(int level);
-
 void initEncoder(void);
-
 void initMorse(void);
-
 void initSD(void);
-
 void initScreen(void);
-
 void splashScreen(void);
