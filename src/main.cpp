@@ -16,6 +16,59 @@
                 >> THIS VERSION UNDER DEVELOPMENT <<<
  **************************************************************************/
 
+/*
+
+***** Release v.2 *****
+Modified by Dave Rajnauth June 2022 to include:
+
+1. Moved code to PlatformIO instead of arduino (Arduino IDE is a joke IMO).
+Should be able to work with Arduino IDE provided libraries are installed.
+
+1. Removed point to point WiFi connection (ESP_NOW) and replaced with MQTT based
+messages from AWS based cloud server (ve3ooi.ddns.net)
+
+1. New Libraries used are:
+PubSubClient
+**Adafruit BusIO was needed to make Adafruit_GFX & Adafruit_ILI9341 to work.
+**Same needed for Arduino IDE.  This may be need for later revision of Adafruit
+lib or Arduino IDE
+
+2. There is "room" which is a "topic" for MQTT message.  All units that use the
+same room will participate in the online twoway call.  Same as over the air
+practice. There is also a username and password.
+//****TODO Need to add TLS encrption to protect password
+
+2. Each message to MQTT server is of the form "<callsign>:<c>".
+<callsign> is your local callsign (hardcoded).
+<c> is the character being transmitted
+//****TODO Callsign Needs to be either integrated with existing mycall or else
+added to config EEPROM.  Maybe use a random number by default
+//****Note that current code uses default call sign which will break this code
+if 2 units use the same callsign
+//****TODO Need to add additional config EEPROM.  Need to add
+  1) Room name (i.e. MQTT Topic),
+  2) MQTT server name
+  3) MQTT username, password
+  4) WiFi SSID and password  (assuming PSK is used)
+  5) Add TLS to protect transport to MQTT Server
+
+2. Brokeup the code so that all network related code is located in "network.cpp"
+and all #defines are located in "main.h"
+
+2. There is a part of send SD file across wireless which will break.  The
+wireless session is not established.  Has this ever worked?
+//****TODO Fix file transfer so that wireless transmission does not occure. Note
+that this will probably result in a buffer overflow since receive buffer is only
+100 characters log. There were problems with sending MQTT messages that are too
+long. Wireless transmission craps out if there is a buffer overflow (its silient
+- no errors generated - means no checks in place)
+//****TODO Add a restriction to limit the size of MQTT messages so no buffer
+overflow occures
+
+2) Fixed all char * to const char * warning messages
+
+*/
+
 //===================================  INCLUDES
 //=========================================
 
@@ -24,7 +77,8 @@
 #include <EEPROM.h>
 #include <SD.h>
 #include <WiFi.h>
-#include <esp_now.h>
+#include <arduino.h>
+//#include <esp_now.h>
 
 // added by VE3OOI
 #include <PubSubClient.h>
@@ -53,32 +107,54 @@ volatile long button_downtime = 0L;  // ms the button was pushed before released
 // Standard Sample of Present-Day American English (Providence, RI: Brown
 // University Press, 1979)
 
+// Modified by VE3OOI to address converstion from *char *const
 char *words[] = {
-    "THE",   "OF",    "AND",    "TO",    "A",    "IN",    "THAT",    "IS",
-    "WAS",   "HE",    "FOR",    "IT",    "WITH", "AS",    "HIS",     "ON",
-    "BE",    "AT",    "BY",     "I",     "THIS", "HAD",   "NOT",     "ARE",
-    "BUT",   "FROM",  "OR",     "HAVE",  "AN",   "THEY",  "WHICH",   "ONE",
-    "YOU",   "WERE",  "ALL",    "HER",   "SHE",  "THERE", "WOULD",   "THEIR",
-    "WE",    "HIM",   "BEEN",   "HAS",   "WHEN", "WHO",   "WILL",    "NO",
-    "MORE",  "IF",    "OUT",    "SO",    "UP",   "SAID",  "WHAT",    "ITS",
-    "ABOUT", "THAN",  "INTO",   "THEM",  "CAN",  "ONLY",  "OTHER",   "TIME",
-    "NEW",   "SOME",  "COULD",  "THESE", "TWO",  "MAY",   "FIRST",   "THEN",
-    "DO",    "ANY",   "LIKE",   "MY",    "NOW",  "OVER",  "SUCH",    "OUR",
-    "MAN",   "ME",    "EVEN",   "MOST",  "MADE", "AFTER", "ALSO",    "DID",
-    "MANY",  "OFF",   "BEFORE", "MUST",  "WELL", "BACK",  "THROUGH", "YEARS",
-    "MUCH",  "WHERE", "YOUR",   "WAY"};
-char *antenna[] = {"YAGI", "DIPOLE", "VERTICAL", "HEXBEAM", "MAGLOOP"};
-char *weather[] = {"HOT",  "SUNNY", "WARM",   "CLOUDY", "RAINY",
-                   "COLD", "SNOWY", "CHILLY", "WINDY",  "FOGGY"};
-char *names[] = {"WAYNE",    "TYE",     "DARREN", "MICHAEL", "SARAH", "DOUG",
-                 "FERNANDO", "CHARLIE", "HOLLY",  "KEN",     "SCOTT", "DAN",
-                 "ERVIN",    "GENE",    "PAUL",   "VINCENT"};
-char *cities[] = {"DAYTON, OH",    "HADDONFIELD, NJ", "MURRYSVILLE, PA",
-                  "BALTIMORE, MD", "ANN ARBOR, MI",   "BOULDER, CO",
-                  "BILLINGS, MT",  "SANIBEL, FL",     "CIMMARON, NM",
-                  "TYLER, TX",     "OLYMPIA, WA"};
-char *rigs[] = {"YAESU FT101", "KENWOOD 780", "ELECRAFT K3", "HOMEBREW",
-                "QRPLABS QCX", "ICOM 7410",   "FLEX 6400"};
+    (char *)"THE",   (char *)"OF",    (char *)"AND",     (char *)"TO",
+    (char *)"A",     (char *)"IN",    (char *)"THAT",    (char *)"IS",
+    (char *)"WAS",   (char *)"HE",    (char *)"FOR",     (char *)"IT",
+    (char *)"WITH",  (char *)"AS",    (char *)"HIS",     (char *)"ON",
+    (char *)"BE",    (char *)"AT",    (char *)"BY",      (char *)"I",
+    (char *)"THIS",  (char *)"HAD",   (char *)"NOT",     (char *)"ARE",
+    (char *)"BUT",   (char *)"FROM",  (char *)"OR",      (char *)"HAVE",
+    (char *)"AN",    (char *)"THEY",  (char *)"WHICH",   (char *)"ONE",
+    (char *)"YOU",   (char *)"WERE",  (char *)"ALL",     (char *)"HER",
+    (char *)"SHE",   (char *)"THERE", (char *)"WOULD",   (char *)"THEIR",
+    (char *)"WE",    (char *)"HIM",   (char *)"BEEN",    (char *)"HAS",
+    (char *)"WHEN",  (char *)"WHO",   (char *)"WILL",    (char *)"NO",
+    (char *)"MORE",  (char *)"IF",    (char *)"OUT",     (char *)"SO",
+    (char *)"UP",    (char *)"SAID",  (char *)"WHAT",    (char *)"ITS",
+    (char *)"ABOUT", (char *)"THAN",  (char *)"INTO",    (char *)"THEM",
+    (char *)"CAN",   (char *)"ONLY",  (char *)"OTHER",   (char *)"TIME",
+    (char *)"NEW",   (char *)"SOME",  (char *)"COULD",   (char *)"THESE",
+    (char *)"TWO",   (char *)"MAY",   (char *)"FIRST",   (char *)"THEN",
+    (char *)"DO",    (char *)"ANY",   (char *)"LIKE",    (char *)"MY",
+    (char *)"NOW",   (char *)"OVER",  (char *)"SUCH",    (char *)"OUR",
+    (char *)"MAN",   (char *)"ME",    (char *)"EVEN",    (char *)"MOST",
+    (char *)"MADE",  (char *)"AFTER", (char *)"ALSO",    (char *)"DID",
+    (char *)"MANY",  (char *)"OFF",   (char *)"BEFORE",  (char *)"MUST",
+    (char *)"WELL",  (char *)"BACK",  (char *)"THROUGH", (char *)"YEARS",
+    (char *)"MUCH",  (char *)"WHERE", (char *)"YOUR",    (char *)"WAY"};
+char *antenna[] = {(char *)"YAGI", (char *)"DIPOLE", (char *)"VERTICAL",
+                   (char *)"HEXBEAM", (char *)"MAGLOOP"};
+char *weather[] = {(char *)"HOT",    (char *)"SUNNY",  (char *)"WARM",
+                   (char *)"CLOUDY", (char *)"RAINY",  (char *)"COLD",
+                   (char *)"SNOWY",  (char *)"CHILLY", (char *)"WINDY",
+                   (char *)"FOGGY"};
+char *names[] = {
+    (char *)"WAYNE", (char *)"TYE",  (char *)"DARREN",   (char *)"MICHAEL",
+    (char *)"SARAH", (char *)"DOUG", (char *)"FERNANDO", (char *)"CHARLIE",
+    (char *)"HOLLY", (char *)"KEN",  (char *)"SCOTT",    (char *)"DAN",
+    (char *)"ERVIN", (char *)"GENE", (char *)"PAUL",     (char *)"VINCENT"};
+char *cities[] = {(char *)"DAYTON, OH",      (char *)"HADDONFIELD, NJ",
+                  (char *)"MURRYSVILLE, PA", (char *)"BALTIMORE, MD",
+                  (char *)"ANN ARBOR, MI",   (char *)"BOULDER, CO",
+                  (char *)"BILLINGS, MT",    (char *)"SANIBEL, FL",
+                  (char *)"CIMMARON, NM",    (char *)"TYLER, TX",
+                  (char *)"OLYMPIA, WA"};
+char *rigs[] = {(char *)"YAESU FT101", (char *)"KENWOOD 780",
+                (char *)"ELECRAFT K3", (char *)"HOMEBREW",
+                (char *)"QRPLABS QCX", (char *)"ICOM 7410",
+                (char *)"FLEX 6400"};
 char punctuation[] = "!@$&()-+=,.:;'/";
 char prefix[] = {'A', 'W', 'K', 'N'};
 char koch[] = "KMRSUAPTLOWI.NJEF0Y,VG5/Q9ZH38B?427C1D6X";
@@ -174,315 +250,25 @@ int startItem = 0;          // startup activity.  0 = main menu
 //===================================  Menu Variables
 //===================================
 int menuCol = 0, textRow = 0, textCol = 0;
-char *mainMenu[] = {" Receive ", "  Send  ", "Config "};
-char *menu0[] = {" Koch    ", " Letters ", " Words   ",
-                 " Numbers ", " Mixed   ", " SD Card ",
-                 " QSO     ", " Callsign", " Exit    "};
-char *menu1[] = {" Practice", " Copy One", " Copy Two",
-                 " Cpy Word", " Cpy Call", " Flashcrd",
-                 " Head Cpy", " Two-Way ", " Exit    "};
-char *menu2[] = {" Speed   ", " Chk Spd ", " Tone    ", " Key     ",
-                 " Callsign", " Screen  ", " Defaults", " Exit    "};
+char *mainMenu[] = {(char *)" Receive ", (char *)"  Send  ", (char *)"Config "};
+char *menu0[] = {(char *)" Koch    ", (char *)" Letters ", (char *)" Words   ",
+                 (char *)" Numbers ", (char *)" Mixed   ", (char *)" SD Card ",
+                 (char *)" QSO     ", (char *)" Callsign", (char *)" Exit    "};
+char *menu1[] = {(char *)" Practice", (char *)" Copy One", (char *)" Copy Two",
+                 (char *)" Cpy Word", (char *)" Cpy Call", (char *)" Flashcrd",
+                 (char *)" Head Cpy", (char *)" Two-Way ", (char *)" Exit    "};
+char *menu2[] = {(char *)" Speed   ", (char *)" Chk Spd ", (char *)" Tone    ",
+                 (char *)" Key     ", (char *)" Callsign", (char *)" Screen  ",
+                 (char *)" Defaults", (char *)" Exit    "};
 
 //===================================  Wireless Code
 //===================================
-
-// Added by VE3OOI
-const char *wifi_ssid = "IKILLU_SLOW";
-const char *wifi_password = "feedface012345678910111213";
-const char *mqtt_userid = "user1";
-const char *mqtt_password = "1234";
-const char *mqtt_server = "ve3ooi.ddns.net";
-const char *localid = "VE3OOI";
-const char *room = "morsetutor";
-unsigned char conflag = 0;              // Wireless connection Status
-char tbuf[MAXBUFLEN], rbuf[MAXBUFLEN];  // send receive MQTT buffer
-
-WiFiClient espClient;
-PubSubClient client(espClient);
-//
-
-esp_now_peer_info_t peer;   // holds information about peer
-char buf[MAXBUFLEN];        // buffer for incoming characters
-int inPtr = 0, outPtr = 0;  // pointer to location of next character
-
-void enQueue(char ch) {
-  buf[inPtr++] = ch;  // add character to buffer, increment pointer
-  if (inPtr == MAXBUFLEN) inPtr = 0;  // circularize it!
-}
-
-char deQueue() {
-  char ch = 0;
-  if (outPtr != inPtr)                  // return 0 if no characters available
-    ch = buf[outPtr++];                 // get character and increment pointer
-  if (outPtr == MAXBUFLEN) outPtr = 0;  // circularize it!
-  return ch;
-}
-
-void initESPNow() {
-  if (esp_now_init() != ESP_OK)          // try to initialize ESPNow protocol
-    ESP.restart();                       // if it didn't work, try again.
-  esp_now_register_send_cb(onDataSent);  // set dataSent callback
-  esp_now_register_recv_cb(onDataRecv);  // set dataRecv callback
-}
-
-void configDeviceAP() {
-  char *SSID = WIFI_SSID;     // access point name for this device
-  char *Password = WIFI_PWD;  // password
-  Serial.print("Starting Soft AP: ");
-  Serial.println(WiFi.softAP(SSID, Password, CHANNEL, 0)
-                     ? "Ready"
-                     : "FAILED");  // set up WiFi access point
-}
 
 void setStatusLED(int color) {
   const int size = 20;  // size of square LED indicator
   const int xPos = DISPLAYWIDTH - size,
             yPos = 0;                           // location = screen top-right
   tft.fillRect(xPos, yPos, size, size, color);  // fill it in with desired color
-}
-
-// callback when data is sent
-void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  if (status == ESP_NOW_SEND_SUCCESS)  // was data recieved correctly?
-    setStatusLED(GREEN);               // yes, so turn LED green
-  else
-    setStatusLED(RED);  // no, so turn LED red
-}
-
-// callback when data is received
-void onDataRecv(const uint8_t *mac_add, const uint8_t *data, int data_len) {
-  if (data_len != 1) return;  // only accept one-byte packets
-  setStatusLED(GREEN);        // green status LED for data received
-  Serial.print("Received data: ");
-  Serial.print(*data, HEX);
-  Serial.print(", '");
-  Serial.println((char)*data);
-  if (*data == CMD_ADDME)         // command from unit #2: add me as a peer
-    addPeer2(mac_add);            // add unit #2 as a peer
-  else if (*data == CMD_LEAVING)  // status command from other unit: quitting
-  {
-    setStatusLED(RED);  // so let user know
-    Serial.println("Peer just left network");
-  } else
-    enQueue(*data);  // put recieved data into queue
-}
-
-bool networkFound()  // Scan for peers in AP mode
-{
-  bool result = false;
-  int8_t count = WiFi.scanNetworks();  // get a list of all available networks
-  for (int i = 0; i < count; i++)      // look at each one
-  {
-    String SSID = WiFi.SSID(i);          // get network's name
-    String BSSIDstr = WiFi.BSSIDstr(i);  // and its Mac address
-    if (SSID.indexOf("W8BH") == 0)       // is it our W8BH network?
-    {
-      int mac[6];               // Yes, so save its information
-      sscanf(BSSIDstr.c_str(),  // parse mac address into componentss
-             "%x:%x:%x:%x:%x:%x%c", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4],
-             &mac[5]);
-      for (int j = 0; j < 6; j++)
-        peer.peer_addr[j] = (uint8_t)mac[j];  // set mac address components
-      peer.channel = CHANNEL;                 // set the communication channel
-      peer.encrypt = 0;                       // set the encryption (none)
-      result = true;
-    }
-  }
-  WiFi.scanDelete();  // clean up ram
-  return result;
-}
-
-// Adds second unit as a peer, in response to AddPeer command
-void addPeer2(const uint8_t *peerMacAddress) {
-  Serial.print("Received request to add peer: ");
-  peer.channel = CHANNEL;
-  peer.ifidx = WIFI_IF_AP;
-  peer.encrypt = 0;
-  memcpy(peer.peer_addr, peerMacAddress, 6);
-  if (esp_now_add_peer(&peer) == ESP_OK)  // try to add unit #2 as a peer
-  {
-    setStatusLED(GREEN);  // it worked, so turn LED green
-    Serial.println("SUCCESS");
-  } else {
-    setStatusLED(RED);  // couldn't add unit #2
-    Serial.println("FAILED");
-  }
-}
-
-void addPeer() {
-  Serial.print("Attempting to join network: ");
-  const uint8_t *peer_addr = peer.peer_addr;
-  bool exists = esp_now_is_peer_exist(peer_addr);
-  if (!exists) {
-    esp_err_t result = esp_now_add_peer(&peer);  // attempt pair with unit #1
-    if (result == ESP_OK)
-      Serial.println("SUCCESS");
-    else if (result == ESP_ERR_ESPNOW_NOT_FOUND)
-      Serial.println("NOT FOUND");
-    else
-      Serial.println((int)result);
-  }
-}
-
-// Modified by VE3OOI
-void sendWireless(uint8_t data) {
-  //  esp_err_t result;
-
-  if (conflag & SRV_CONNECTED) {
-    memset(tbuf, 0, sizeof(tbuf));
-    sprintf(tbuf, "%s:%c", localid, data);
-    client.publish(room, (char *)tbuf, strlen(tbuf));
-    Serial.print("Sending MQTT message: ");
-    Serial.println((char *)tbuf);
-  } else {
-    Serial.println("Error: No MQTT server connection");
-  }
-  //  const uint8_t *peer_addr = peer.peer_addr;
-  //  result = esp_now_send(peer_addr, &data, sizeof(data));  // send data to
-  //  peer Serial.print(" - result "); Serial.println((int)result, HEX);
-}
-
-void sendAddPeerCmd() {
-  Serial.println("Now asking peer to add me");
-  delay(500);
-  sendWireless(CMD_ADDME);  // send message to other unit:
-  delay(100);               // add me as a network peer
-}
-
-// Modified by VE3OOI
-void closeWireless() {
-  setStatusLED(BLACK);  // erase two-way status LED
-                        //  Serial.println("Telling peer I am closing");
-  //  sendWireless(CMD_LEAVING);  // message other unit: I am leaving
-  //  esp_now_deinit();           // quit esp_now
-  //  WiFi.softAPdisconnect(true);
-  client.disconnect();
-  Serial.println("Disconnected from MQTT");
-  WiFi.disconnect();
-  Serial.println("Wireless now closed");
-}
-
-// Modified by VE3OOI
-void initWireless() {
-  Serial.println("\r\n\r\nMQTT Sensor v0.1 Initialization\r\n");
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(wifi_ssid);
-
-  WiFi.begin(wifi_ssid, wifi_password);
-
-  conflag = 0;
-  int timeout = 0;
-  while (WiFi.status() != WL_CONNECTED && timeout < WIFI_TIMEOUT) {
-    Serial.print(".");
-    timeout++;
-    delay(500);
-  }
-
-  Serial.println();
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.print("Error Connecting to ");
-    Serial.println(wifi_ssid);
-    conflag = 0;
-    return;
-  }
-
-  conflag |= AP_CONNECTED;
-  Serial.println("WiFi connected");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-  Serial.print("DNS IP address: ");
-  Serial.println(WiFi.dnsIP());
-  Serial.print("Gateway IP address: ");
-  Serial.println(WiFi.gatewayIP());
-
-  randomSeed(micros());
-
-  memset(tbuf, 0, sizeof(tbuf));
-
-  timeout = 0;
-  IPAddress serverIP(0, 0, 0, 0);
-//  IPAddress server(192, 168, 1, 50);  // Used for local testing.
-
-  Serial.println("Resolving host...");
-  while (serverIP.toString() == "0.0.0.0" && timeout < 10) {
-    Serial.println(WiFi.hostByName(mqtt_server, serverIP));
-    timeout++;
-    delay(250);
-  }
-
-  if (serverIP.toString() != "0.0.0.0") {
-    Serial.print("Host address resolved:");
-    Serial.println(serverIP.toString());
-    conflag |= DNS_CONNECTED;
-  } else {
-    Serial.println("Error resolving IP via DNS");
-    conflag = 0;
-    return;
-  }
-
-  client.setServer(serverIP, 1883);
-  client.setCallback(MQTTcallback);
-
-  while (!client.connected()) {
-    Serial.println("Attempting MQTT connection...");
-    // Attempt to connect to MQTT Server
-    if (client.connect(localid, mqtt_userid, mqtt_password)) {
-      sprintf(tbuf, "%s-%s", localid, "Online");
-      client.publish(room, (char *)tbuf, strlen(tbuf));
-      client.subscribe(room);
-      conflag |= SRV_CONNECTED;
-      delay(500);
-      // Error connecting to MQTT Server
-    } else {
-      Serial.print("Error Connecting to MQTT Server: ");
-      Serial.println(client.state());
-      conflag = 0;
-      delay(5000);
-      return;
-    }
-  }
-  inPtr = outPtr = 0;  // reset pointer to location of next character
-  memset(buf, 0, sizeof(buf));
-  memset(rbuf, 0, sizeof(rbuf));
-  memset(tbuf, 0, sizeof(tbuf));
-  Serial.println("MQTT Connected");
-}
-
-// Added by VE3OOI
-void MQTTcallback(char *topic, byte *data, unsigned int data_len) {
-  char *substring, ch;
-  // In order to republish this payload, a copy must be made
-  // as the orignal payload buffer will be overwritten whilst
-  // constructing the PUBLISH packet.
-
-  // void onDataRecv(const uint8_t *mac_add, const uint8_t *data, int data_len)
-
-  if (!strstr((char *)data, localid)) {
-    memset(rbuf, 0, sizeof(rbuf));
-
-    strncpy((char *)rbuf, (char *)data, data_len);
-
-    ch = NULL;
-    substring = strrchr(rbuf, MQTT_DELIMETER);
-    if (substring != NULL) {
-      Serial.print("MQTTcallback Received valid string: '");
-      Serial.print((char *)substring);
-      Serial.println("'");
-
-      if (strlen(substring) > 1 && substring[1] != NULL) {
-        ch = substring[1];
-        Serial.print("Processing valid character: ");
-        Serial.println((char)ch);
-        setStatusLED(GREEN);  // green status LED for data received
-        enQueue(ch);          // put recieved data into queue
-      }
-    } else {
-      Serial.print("MQTTcallback Received invalid message: ");
-      Serial.println((char *)rbuf);
-    }
-  }
 }
 
 //===================================  Rotary Encoder Code
@@ -774,9 +560,9 @@ void sendKochLesson(int lesson)  // send letter/number groups...
 void introLesson(int lesson)  // helper fn for getLessonNumber()
 {
   newScreen();  // start with clean screen
-  tft.print("You are in lesson ");
+  tft.print((char *)"You are in lesson ");
   tft.println(lesson);  // show lesson number
-  tft.println("\nCharacters: ");
+  tft.println((char *)"\nCharacters: ");
   tft.setTextColor(CYAN);
   for (int i = 0; i <= lesson; i++)  // show characters in this lession
   {
@@ -784,7 +570,7 @@ void introLesson(int lesson)  // helper fn for getLessonNumber()
     tft.print(" ");
   }
   tft.setTextColor(textColor);
-  tft.println("\n\nPress <dit> to begin");
+  tft.println((char *)"\n\nPress <dit> to begin");
 }
 
 int getLessonNumber() {
@@ -805,12 +591,12 @@ int getLessonNumber() {
 
 void sendKoch() {
   while (!button_pressed) {
-    setTopMenu("Koch lesson");
-    int lesson = getLessonNumber();          // allow user to select lesson
-    if (button_pressed) return;              // user quit, so sad
-    sendKochLesson(lesson);                  // do the lesson
-    setTopMenu("Get 90%? Dit=YES, Dah=NO");  // ask user to score lesson
-    while (!button_pressed) {                // wait for user response
+    setTopMenu((char *)"Koch lesson");
+    int lesson = getLessonNumber();  // allow user to select lesson
+    if (button_pressed) return;      // user quit, so sad
+    sendKochLesson(lesson);          // do the lesson
+    setTopMenu((char *)"Get 90%? Dit=YES, Dah=NO");  // ask user to score lesson
+    while (!button_pressed) {                        // wait for user response
       if (ditPressed())  // dit = user advances to next level
       {
         roger();                                      // acknowledge success
@@ -1057,7 +843,7 @@ void sendFile(char *filename)  // output a file to screen & morse
       if (wireless) sendWireless(ch);
       if (ditPressed() && dahPressed())  // user wants to 'skip' ahead:
       {
-        sendString("=  ");  // acknowledge the skip with ~BT
+        sendString((char *)"= ");  // acknowledge the skip with ~BT
         for (int i = 0; i < pageSkip; i++)
           book.read();  // skip a bunch of text!
       }
@@ -1081,14 +867,14 @@ void sendFromSD()  // show files on SD card, get user selection & send it.
 
 void checkSpeed() {
   long start = millis();
-  sendString("PARIS ");             // send "PARIS"
+  sendString((char *)"PARIS ");     // send "PARIS"
   long elapsed = millis() - start;  // see how long it took
   dit();                            // sound out the end.
   float wpm = 60000.0 / elapsed;    // convert time to WPM
   tft.setTextSize(3);
   tft.setCursor(100, 80);
   tft.print(wpm);  // display result
-  tft.print(" WPM");
+  tft.print((char *)" WPM");
   while (!button_pressed)
     ;  // wait for user
 }
@@ -1244,8 +1030,9 @@ void copyWords()  // show a callsign & see if user can copy it
 
 void encourageUser()  // helper fn for showScore()
 {
-  char *phrases[] = {"Good Job", "Keep Going",  // list of phrases to display
-                     "Amazing", "Dont Stop", "Impressive"};
+  char *phrases[] = {
+      (char *)"Good Job", (char *)"Keep Going",  // list of phrases to display
+      (char *)"Amazing", (char *)"Dont Stop", (char *)"Impressive"};
   if (score == 0) return;  // 0 is not an encouraging score
   if (score % 25) return;  // set interval at every 25 points
   textCol = 0;
@@ -1394,7 +1181,7 @@ void twoWay()  // wireless QSO between units
   initWireless();  // look for another unit & connect
   char oldCh = ' ';
   while (!button_pressed) {
-    client.loop();
+    processMQTT();
     char ch = morseInput();                // get a morse character from user
     if (!((ch == ' ') && (oldCh == ' ')))  // only 1 word space at a time.
     {
@@ -1406,6 +1193,8 @@ void twoWay()  // wireless QSO between units
 
     while (ch = deQueue())  // any characters to receive?
     {
+      processMQTT();  // Address potential buffer overflow - clear any received
+                      // characters
       tft.setTextColor(RXCOLOR);  // change text color
       sendCharacter(ch);          // sound it out and show it.
     }
@@ -1552,7 +1341,7 @@ void showMenuChoice(int choice) {
   tft.fillRect(x, y, 130, 32, bgColor);  // erase any prior entry
   tft.setCursor(x, y);
   if (choice < 0)
-    tft.print("Main Menu");
+    tft.print((char *)"Main Menu");
   else {
     tft.println(
         ltrim(mainMenu[choice / 10]));  // show top menu choice on line 1
@@ -1566,7 +1355,7 @@ void changeStartup()  // choose startup activity
 {
   const int LASTITEM = 27;  // currenly 27 choices
   tft.setTextSize(2);
-  tft.println("\nStartup:");
+  tft.println((char *)"\nStartup:");
   int i = startItem;
   if ((i < 0) || (i > LASTITEM)) i = -1;  // dont wig out on bad value
   showMenuChoice(i);                      // show current startup choice
@@ -1586,7 +1375,7 @@ void changeStartup()  // choose startup activity
 void changeBackground() {
   const int x = 180, y = 150;  // screen posn for text display
   tft.setTextSize(2);
-  tft.println("\n\n\nBackground:");
+  tft.println((char *)"\n\n\nBackground:");
   tft.drawRect(x - 6, y - 6, 134, 49, WHITE);  // draw box around background
   button_pressed = false;
   int i = 0;
@@ -1609,7 +1398,7 @@ void changeTextColor() {
   const char sample[] = "ABCDE";
   const int x = 180, y = 150;  // screen posn for text display
   tft.setTextSize(2);
-  tft.println("Text Color:");
+  tft.println((char *)"Text Color:");
   tft.setTextSize(4);
   tft.setCursor(x, y);
   int i = 7;  // start with cyan for fun
@@ -1632,7 +1421,7 @@ void changeTextColor() {
 
 void changeBrightness() {
   const int x = 180, y = 100;  // screen position
-  tft.println("\n\n\nBrightness:");
+  tft.println((char *)"\n\n\nBrightness:");
   tft.setTextSize(4);
   tft.setCursor(x, y);
   tft.print(brightness);  // show current brightness
@@ -1664,7 +1453,7 @@ void setScreen() {
 void setCodeSpeed() {
   const int x = 240, y = 50;  // screen posn for speed display
   tft.println("\nEnter");
-  tft.print("Code Speed (WPM):");
+  tft.print((char *)"Code Speed (WPM):");
   tft.setTextSize(4);
   tft.setCursor(x, y);
   tft.print(charSpeed);  // display current speed
@@ -1687,8 +1476,8 @@ void setFarnsworth() {
   const int x = 240, y = 100;  // screen posn for speed display
   if (codeSpeed > charSpeed) codeSpeed = charSpeed;  // dont go above charSpeed
   tft.setTextSize(2);
-  tft.println("\n\n\nFarnsworth");
-  tft.print("Speed (WPM):");
+  tft.println((char *)"\n\n\nFarnsworth");
+  tft.print((char *)"Speed (WPM):");
   tft.setTextSize(4);
   tft.setCursor(x, y);
   tft.print(codeSpeed);  // display current speed
@@ -1712,8 +1501,8 @@ void setExtraWordDelay()  // add extra word spacing
 {
   const int x = 240, y = 150;  // screen posn for speed display
   tft.setTextSize(2);
-  tft.println("\n\n\nExtra Word Delay");
-  tft.print("(Spaces):");
+  tft.println((char *)"\n\n\nExtra Word Delay");
+  tft.print((char *)"(Spaces):");
   tft.setTextSize(4);
   tft.setCursor(x, y);
   tft.print(xWordSpaces);  // display current space
@@ -1742,7 +1531,7 @@ void setSpeed() {
 
 void setPitch() {
   const int x = 120, y = 80;  // screen posn for pitch display
-  tft.print("Tone Frequency (Hz)");
+  tft.print((char *)"Tone Frequency (Hz)");
   tft.setTextSize(4);
   tft.setCursor(x, y);
   tft.print(pitch);  // show current pitch
@@ -1763,18 +1552,19 @@ void setPitch() {
 }
 
 void configKey() {
-  tft.print("Currently: ");     // show current settings:
-  if (!usePaddles)              // using paddles?
-    tft.print("Straight Key");  // not on your life!
+  tft.print((char *)"Currently: ");     // show current settings:
+  if (!usePaddles)                      // using paddles?
+    tft.print((char *)"Straight Key");  // not on your life!
   else {
-    tft.print("Iambic Mode ");  // of course paddles, but which keyer mode?
+    tft.print(
+        (char *)"Iambic Mode ");  // of course paddles, but which keyer mode?
     if (keyerMode == IAMBIC_B)
-      tft.print("B");  // show iambic B or iambic A
+      tft.print((char *)"B");  // show iambic B or iambic A
     else
-      tft.print("A");
+      tft.print((char *)"A");
   }
   tft.setCursor(0, 60);
-  tft.println("Send a dit NOW");  // first, determine which input is dit
+  tft.println((char *)"Send a dit NOW");  // first, determine which input is dit
   while (!button_pressed && !ditPressed() && !dahPressed())
     ;                          // wait for user input
   if (button_pressed) return;  // user wants to exit
@@ -1783,12 +1573,13 @@ void configKey() {
                   : PADDLE_B;  // dit = whatever pin went low.
   dahPaddle =
       !digitalRead(PADDLE_A) ? PADDLE_B : PADDLE_A;  // dah = opposite of dit.
-  tft.println("OK.\n");
+  tft.println((char *)"OK.\n");
   saveConfig();  // save it
   roger();       // and acknowledge.
 
-  tft.println("Send Dit again for Key");  // now, select key or paddle input
-  tft.println("Send Dah for Paddles");
+  tft.println(
+      (char *)"Send Dit again for Key");  // now, select key or paddle input
+  tft.println((char *)"Send Dah for Paddles");
   while (!button_pressed && !ditPressed() && !dahPressed())
     ;                          // wait for user input
   if (button_pressed) return;  // user wants to exit
@@ -1798,8 +1589,8 @@ void configKey() {
   roger();
 
   if (!usePaddles) return;
-  tft.println("Send Dit for Iambic A");  // now, select keyer mode
-  tft.println("Send Dah for Iambic B");
+  tft.println((char *)"Send Dit for Iambic A");  // now, select keyer mode
+  tft.println((char *)"Send Dah for Iambic B");
   while (!button_pressed && !ditPressed() && !dahPressed())
     ;                          // wait for user input
   if (button_pressed) return;  // user wants to exit
@@ -1807,7 +1598,7 @@ void configKey() {
     keyerMode = IAMBIC_A;
   else
     keyerMode = IAMBIC_B;
-  tft.println("OK.\n");
+  tft.println((char *)"OK.\n");
   saveConfig();  // save it
   if (keyerMode == IAMBIC_A)
     sendCharacter('A');
@@ -1817,7 +1608,7 @@ void configKey() {
 
 void setCallsign() {
   char ch, response[20];
-  tft.print("\n Enter Callsign:");
+  tft.print((char *)"\n Enter Callsign:");
   tft.setTextColor(CYAN);
   strcpy(response, "");  // start with empty response
   textRow = 2;
@@ -1850,9 +1641,9 @@ void setCallsign() {
 //  [                                                      ]
 //  [------------------------------------------------------]
 //
-//  "Menu" is where the main menu is displayed
-//  "Icons" is for battery icon and other special flags (30px)
-//  "Body" is the writable area of the screen
+// "Menu" is where the main menu is displayed
+// "Icons" is for battery icon and other special flags (30px)
+// "Body" is the writable area of the screen
 
 void clearMenu() { tft.fillRect(0, 0, DISPLAYWIDTH - 30, ROWSPACING, bgColor); }
 
@@ -2042,6 +1833,12 @@ void initEncoder() {
   attachInterrupt(digitalPinToInterrupt(ENCODER_B), rotaryISR, CHANGE);
 }
 
+/*
+***** VE3OOI - There is an error here with ledcSetup.  This must be fixed.
+00,hd_drv:0xE (844) ledc: requested frequency and duty resolution can not be
+achieved, try reducing freq_hz or duty_resolution. div_param=50 [
+848][E][esp32-hal-ledc.c:75] ledcSetup(): ledc setup failed!
+*/
 void initMorse() {
   ledcSetup(0, 1E5, 12);            // smoke & mirrors for ESP32
   ledcAttachPin(AUDIO, 0);          // since tone() not yet supported
@@ -2076,11 +1873,11 @@ void splashScreen()  // not splashy at all!
   tft.print(myCall);  // display user's callsign
   tft.setTextColor(CYAN);
   tft.setCursor(15, 90);
-  tft.print("Morse Code Tutor");  // add title
+  tft.print((char *)"Morse Code Tutor");  // add title
   tft.setTextSize(1);
   tft.setCursor(50, 220);
   tft.setTextColor(WHITE);
-  tft.print("Copyright (c) 2020, Bruce E. Hall");  // legal small print
+  tft.print((char *)"Copyright (c) 2020, Bruce E. Hall");  // legal small print
   tft.setTextSize(2);
 }
 

@@ -16,13 +16,9 @@
 
 //===================================  Wireless Constants
 //===============================
-// Removed by VE3OOI
-#define CHANNEL 1               // Wifi channel number
-#define WIFI_SSID "W8BH Tutor"  // Wifi network name
-#define WIFI_PWD "9372947313"   // Wifi password
+// Modified by VE3OOI
 #define MAXBUFLEN 100           // size of incoming character buffer
-#define CMD_ADDME 0x11          // request to add this unit as a peer
-#define CMD_LEAVING 0x12        // flag this unit as leaving
+
 // Added by VE3OOI
 // Connection Flags and defines
 #define AP_CONNECTED  0x1       // Flag: connected to WiFi AP
@@ -102,19 +98,12 @@
 // Added by VE3OOI
 // Function Prototypes
 void MQTTcallback(char *topic, byte *payload, unsigned int len);
+void processMQTT(void);
 
 void enQueue(char ch);
 char deQueue(void);
-void initESPNow(void);
-void configDeviceAP(void);
 void setStatusLED(int color);
-void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status);
-void onDataRecv(const uint8_t *mac_add, const uint8_t *data, int data_len);
-bool networkFound(void);
-void addPeer2(const uint8_t *peerMacAddress);
-void addPeer(void);
 void sendWireless(uint8_t data);
-void sendAddPeerCmd(void);
 void closeWireless(void);
 void initWireless(void);
 
