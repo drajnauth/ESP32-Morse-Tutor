@@ -1,32 +1,39 @@
-#include <arduino.h>
 #include <WiFi.h>
-//#include <esp_now.h>
+#include <arduino.h>
 
-// added by VE3OOI
+// Added by VE3OOI
 #include <PubSubClient.h>
 
 #include "main.h"
 
 // Added by VE3OOI
+extern char myCall[10];   // Defined in main.cpp
+extern TUTOR_STRUT cfg;   // Defined in main.cpp
+
 const char *wifi_ssid = "IKILLU_SLOW";
 const char *wifi_password = "feedface012345678910111213";
 const char *mqtt_userid = "user1";
 const char *mqtt_password = "1234";
 const char *mqtt_server = "ve3ooi.ddns.net";
-const char *localid = "VE3OOI";
+
+char localid[10];
 const char *room = "morsetutor";
-unsigned char conflag = 0;              // Wireless connection Status
-char tbuf[MAXBUFLEN], rbuf[MAXBUFLEN];  // send receive MQTT buffer
+unsigned char conflag = 0;  // Wireless connection Status
+char tbuf[MAXBUFLEN],
+    rbuf[MAXBUFLEN];  // send receive MQTT buffer
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 //
 
+// orign code here
 char buf[MAXBUFLEN];        // buffer for incoming characters
 int inPtr = 0, outPtr = 0;  // pointer to location of next character
 
+// Added by VE3OOI to process MQTT messages from main.cpp
 void processMQTT(void) { client.loop(); }
 
+// orign code here
 void enQueue(char ch) {
   buf[inPtr++] = ch;  // add character to buffer, increment pointer
   if (inPtr == MAXBUFLEN) inPtr = 0;  // circularize it!
@@ -42,10 +49,9 @@ char deQueue() {
 
 // Modified by VE3OOI
 void sendWireless(uint8_t data) {
-  //  esp_err_t result;
-
   if (conflag & SRV_CONNECTED) {
-    memset(tbuf, 0, sizeof(tbuf));
+    memset(tbuf, 0,
+           sizeof(tbuf));  // Flush string.  Ensure it NULL terminated string
     sprintf(tbuf, "%s:%c", localid, data);
     client.publish(room, (char *)tbuf, strlen(tbuf));
     Serial.print("Sending MQTT message: ");
@@ -53,21 +59,16 @@ void sendWireless(uint8_t data) {
   } else {
     Serial.println("Error: No MQTT server connection");
   }
-  //  const uint8_t *peer_addr = peer.peer_addr;
-  //  result = esp_now_send(peer_addr, &data, sizeof(data));  // send data to
-  //  peer Serial.print(" - result "); Serial.println((int)result, HEX);
 }
 
 // Modified by VE3OOI
 void closeWireless() {
   setStatusLED(BLACK);  // erase two-way status LED
                         //  Serial.println("Telling peer I am closing");
-  //  sendWireless(CMD_LEAVING);  // message other unit: I am leaving
-  //  esp_now_deinit();           // quit esp_now
-  //  WiFi.softAPdisconnect(true);
   client.disconnect();
   Serial.println("Disconnected from MQTT");
   WiFi.disconnect();
+  conflag = 0;
   Serial.println("Wireless now closed");
 }
 
@@ -107,8 +108,6 @@ void initWireless() {
 
   randomSeed(micros());
 
-  memset(tbuf, 0, sizeof(tbuf));
-
   timeout = 0;
   IPAddress serverIP(0, 0, 0, 0);
   //  IPAddress server(192, 168, 1, 50);  // Used for local testing.
@@ -136,12 +135,34 @@ void initWireless() {
   while (!client.connected()) {
     Serial.println("Attempting MQTT connection...");
     // Attempt to connect to MQTT Server
+    memset(localid, 0,
+           sizeof(localid));  // Flush string.  Ensure it NULL terminated string
+
+    sprintf(localid, "%c%c%c", (char)random(65, 90), (char)random(65, 90),
+            (char)random(65, 90));
+
     if (client.connect(localid, mqtt_userid, mqtt_password)) {
-      sprintf(tbuf, "%s-%s", localid, "Online");
+      memset(tbuf, 0,
+             sizeof(tbuf));  // Flush string.  Ensure it NULL terminated string
+      // Announce arrival
+      sprintf(tbuf, "%s:%s-%s", myCall, localid, "Online");
+
       client.publish(room, (char *)tbuf, strlen(tbuf));
+      delay(500);  // Allow message to reach device.  To allow receive buffer to
+                   // be processed
+
+      // Subscribe to topic (which i call the "room")
       client.subscribe(room);
       conflag |= SRV_CONNECTED;
-      delay(500);
+
+      // Send CQ
+      sendWireless(' ');
+      sendWireless('c');
+      sendWireless('q');
+      sendWireless(' ');
+      delay(500);  // Allow messages to reach device.  To allow receive buffer
+                   // to be processed
+
       // Error connecting to MQTT Server
     } else {
       Serial.print("Error Connecting to MQTT Server: ");
@@ -152,41 +173,53 @@ void initWireless() {
     }
   }
   inPtr = outPtr = 0;  // reset pointer to location of next character
-  memset(buf, 0, sizeof(buf));
-  memset(rbuf, 0, sizeof(rbuf));
-  memset(tbuf, 0, sizeof(tbuf));
+  memset(buf, 0,
+         sizeof(buf));  // Flush string.  Ensure it NULL terminated string
+  memset(rbuf, 0,
+         sizeof(rbuf));  // Flush string.  Ensure it NULL terminated string
+  memset(tbuf, 0,
+         sizeof(tbuf));  // Flush string.  Ensure it NULL terminated string
   Serial.println("MQTT Connected");
 }
 
-// Added by VE3OOI
+// Added by VE3OOIt process incomming MQTT message
 void MQTTcallback(char *topic, byte *data, unsigned int data_len) {
   char *substring, ch;
   // In order to republish this payload, a copy must be made
   // as the orignal payload buffer will be overwritten whilst
   // constructing the PUBLISH packet.
 
-  if (!strstr((char *)data, localid)) {
-    memset(rbuf, 0, sizeof(rbuf));
+  ///////// Troubleshooting
+  // Serial.println(data_len);
+  // Serial.println(localid);
+  // for (int i = 0; i < data_len; i++) {
+  //   Serial.print((char)data[i]);
+  // }
+  // Serial.println();
 
+  if (data_len <= MAX_MQTT_MSG_LEN) {  // Ensure message is not too large
+    memset(rbuf, 0,
+           sizeof(rbuf));  // Flush string.  Ensure it NULL terminated string
     strncpy((char *)rbuf, (char *)data, data_len);
 
-    ch = (char)NULL;
-    substring = strrchr(rbuf, MQTT_DELIMETER);
-    if (substring != NULL) {
-//      Serial.print("MQTTcallback Received valid string: '");
-//      Serial.print((char *)substring);
-//      Serial.println("'");
-
-      if (strlen(substring) > 1 && substring[1] != (char)NULL) {
-        ch = substring[1];
-//        Serial.print("Processing valid character: ");
-//        Serial.println((char)ch);
-        setStatusLED(GREEN);  // green status LED for data received
-        enQueue(ch);          // put recieved data into queue
+    if (!strstr((char *)rbuf,
+                localid)) {  // Ignore message with own callsign or ID
+      ch = (char)NULL;
+      substring = strrchr(rbuf, MQTT_DELIMETER);
+      if (substring != NULL) {
+        if (strlen(substring) > 1 && substring[1] != (char)NULL) {
+          ch = substring[1];
+          setStatusLED(GREEN);  // green status LED for data received
+          enQueue(ch);          // put recieved data into queue
+        } else {
+          Serial.println("MQTTcallback Received null message");
+        }
+      } else {
+        Serial.print("MQTTcallback Received invalid message: ");
+        Serial.println((char *)rbuf);
       }
-    } else {
-      Serial.print("MQTTcallback Received invalid message: ");
-      Serial.println((char *)rbuf);
     }
+  } else {
+    Serial.println("MQTTcallback received message thats too long");
   }
 }

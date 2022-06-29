@@ -55,6 +55,12 @@ if 2 units use the same callsign
 2. Brokeup the code so that all network related code is located in "network.cpp"
 and all #defines are located in "main.h"
 
+2. Fixed error on startup related to using PWM frequency and duty cycle
+resolution that is not supported
+
+2. Fixed error in SD file processing.  The file list was missing the first
+character of each file name.
+
 2. There is a part of send SD file across wireless which will break.  The
 wireless session is not established.  Has this ever worked?
 //****TODO Fix file transfer so that wireless transmission does not occure. Note
@@ -62,10 +68,9 @@ that this will probably result in a buffer overflow since receive buffer is only
 100 characters log. There were problems with sending MQTT messages that are too
 long. Wireless transmission craps out if there is a buffer overflow (its silient
 - no errors generated - means no checks in place)
-//****TODO Add a restriction to limit the size of MQTT messages so no buffer
-overflow occures
 
-2) Fixed all char * to const char * warning messages
+
+Bla..bla
 
 */
 
@@ -260,6 +265,71 @@ char *menu1[] = {(char *)" Practice", (char *)" Copy One", (char *)" Copy Two",
 char *menu2[] = {(char *)" Speed   ", (char *)" Chk Spd ", (char *)" Tone    ",
                  (char *)" Key     ", (char *)" Callsign", (char *)" Screen  ",
                  (char *)" Defaults", (char *)" Exit    "};
+
+unsigned char addr = 0;
+TUTOR_STRUT cfg;
+
+//===================================  Configutation Routines
+//===================================
+void initializeMem(void) {
+  memset((char *)&cfg, NULL, sizeof(cfg));
+  cfg.flag = INIT_FLAG;
+  cfg.flag = INIT_FLAG;
+  cfg.charSpeed = DEFAULTSPEED;
+  cfg.codeSpeed = DEFAULTSPEED;
+  cfg.pitch = DEFAULTPITCH;
+  cfg.usePaddles = false;
+  cfg.ditPaddle = PADDLE_A;
+  cfg.dahPaddle = PADDLE_B;
+  cfg.kochLevel = 1;
+  cfg.xWordSpaces = 0;
+
+  cfg.keyerMode = IAMBIC_B;
+  cfg.startItem = 0;
+  cfg.brightness = 100;
+  cfg.textColor = TEXTCOLOR;
+  cfg.bgColor = BG;
+
+  // Make sure that strings are less than MAX_CHAR_STRING or MAX_SSID_STRING
+  // else bad things happen
+  strcpy(cfg.myCall, "W8BH");
+  strcpy(cfg.wifi_ssid, "IKILLU_SLOW");
+  strcpy(cfg.wifi_password, "feedface012345678910111213");
+  strcpy(cfg.mqtt_userid, "user1");
+  strcpy(cfg.mqtt_password, "1234");
+  strcpy(cfg.mqtt_server, "ve3ooi.ddns.net");
+  strcpy(cfg.room, "morsetutor");
+
+  EEPROM.writeBytes(addr, (char *)&cfg, sizeof(cfg));
+}
+
+void printMem(void) {
+  EEPROM.readBytes(addr, (char *)&cfg, sizeof(cfg));
+  Serial.print("\r\nEEPROM (");
+  Serial.print(addr);
+  Serial.println("): ");
+  Serial.println(charSpeed);
+  Serial.println(codeSpeed);
+  Serial.println(pitch);
+  Serial.println(ditPaddle);
+  Serial.println(kochLevel);
+  Serial.println(usePaddles);
+  Serial.println(xWordSpaces);
+  Serial.println(myCall);
+  Serial.println(keyerMode);
+  Serial.println(startItem);
+  Serial.println(brightness);
+  Serial.println(textColor);
+  Serial.println(textColor);
+  Serial.println(bgColor);
+  Serial.println(bgColor);
+  Serial.println(cfg.wifi_ssid);
+  Serial.println(cfg.wifi_password);
+  Serial.println(cfg.mqtt_userid);
+  Serial.println(cfg.mqtt_password);
+  Serial.println(cfg.mqtt_server);
+  Serial.println(cfg.room);
+}
 
 //===================================  Wireless Code
 //===================================
@@ -760,9 +830,12 @@ int getFileList(char list[][FNAMESIZE])  // gets list of files on SD card
     if (!entry) break;                 // leave if there aren't any more
     if (!entry.isDirectory() &&        // ignore directory names
         (entry.name()[0] != '_'))      // ignore hidden "_name" Mac files
+
+      // Modified by VE3OOI.  Removed entry.name()[1] so that full file name can
+      // be retrieved
       strcpy(list[count++],
-             &entry.name()[1]);  // add SD file to the list (ESP32: remove '/')
-    entry.close();               // close the file
+             entry.name());  // add SD file to the list (ESP32: remove '/')
+    entry.close();           // close the file
   }
   root.close();
   return count;
@@ -825,21 +898,28 @@ int fileMenu(char menu[][FNAMESIZE],
 
 void sendFile(char *filename)  // output a file to screen & morse
 {
-  char s[FNAMESIZE] = "/";       // ESP32: need space for whole filename
-  strcat(s, filename);           // ESP32: prepend filename with slash
-  const int pageSkip = 250;      // number of characters to skip, if asked to
-  newScreen();                   // clear screen below menu
+  char s[FNAMESIZE] = "/";   // ESP32: need space for whole filename
+  strcat(s, filename);       // ESP32: prepend filename with slash
+  const int pageSkip = 250;  // number of characters to skip, if asked to
+  newScreen();               // clear screen below menu
+
+  // Notes by VE3OOI.  Sending file contends via network is a bad idea.  Can
+  // result in a buffer overflow
   bool wireless = longPress();   // if long button press, send file wirelessly
-  if (wireless) initWireless();  // start wireless transmission
-  button_pressed = false;        // reset flag for new presses
-  File book = SD.open(s);        // look for book on sd card
-  if (book) {                    // find it?
+  if (wireless) initWireless();  // start wireless
+  //    transmission
+  button_pressed = false;  // reset flag for new presses
+  File book = SD.open(s);  // look for book on sd card
+  if (book) {              // find it?
     while (!button_pressed &&
            book.available())  // do for all characters in book:
     {
       char ch = book.read();     // get next character
       if (ch == '\n') ch = ' ';  // convert LN to a space
       sendCharacter(ch);         // and send it
+
+      // Notes by VE3OOI.  Sending file contends via network is a bad idea.  Can
+      // result in a buffer overflow
       if (wireless) sendWireless(ch);
       if (ditPressed() && dahPressed())  // user wants to 'skip' ahead:
       {
@@ -850,13 +930,15 @@ void sendFile(char *filename)  // output a file to screen & morse
     }
     book.close();  // close the file
   }
+  // Notes by VE3OOI.  Sending file contends via network is a bad idea.  Can
+  // result in a buffer overflow
   if (wireless) closeWireless();  // close wireless transmission
 }
 
 void sendFromSD()  // show files on SD card, get user selection & send it.
 {
-  char list[MAXFILES]
-           [FNAMESIZE];  // hold list of SD filenames (DOS 8.3 format, 13 char)
+  char list[MAXFILES][FNAMESIZE];      // hold list of SD filenames (DOS 8.3
+                                       // format, 13 char)
   int count = getFileList(list);       // get list of files on the SD card
   int choice = fileMenu(list, count);  // display list & let user choose one
   sendFile(list[choice]);              // output text & morse until user quits
@@ -1193,8 +1275,8 @@ void twoWay()  // wireless QSO between units
 
     while (ch = deQueue())  // any characters to receive?
     {
-      processMQTT();  // Address potential buffer overflow - clear any received
-                      // characters
+      processMQTT();  // Address potential buffer overflow - clear any
+                      // received characters
       tft.setTextColor(RXCOLOR);  // change text color
       sendCharacter(ch);          // sound it out and show it.
     }
@@ -1209,6 +1291,7 @@ void twoWay()  // wireless QSO between units
 void printConfig()  // debugging only; not called
 {
   Serial.println("EEPROM contents");
+
   for (int i = 0; i < 25; i++) {
     int value = EEPROM.read(i);
     Serial.print(i);
@@ -1805,8 +1888,9 @@ int subMenu(char *menu[],
       } else  // we must be moving within the frame
       {
         y = TOPMARGIN + pos * ROWSPACING;  // calc y-coord of current item
-        showMenuItem(menu[index], x, y, FG, bgColor);  // deselect current item
-        index += dir;                                  // go to next/prev item
+        showMenuItem(menu[index], x, y, FG,
+                     bgColor);  // deselect current item
+        index += dir;           // go to next/prev item
       }
       pos = index - top;  // posn of selected item in visible list
       y = TOPMARGIN + pos * ROWSPACING;  // calc y-coord of new item
@@ -1840,7 +1924,13 @@ achieved, try reducing freq_hz or duty_resolution. div_param=50 [
 848][E][esp32-hal-ledc.c:75] ledcSetup(): ledc setup failed!
 */
 void initMorse() {
-  ledcSetup(0, 1E5, 12);            // smoke & mirrors for ESP32
+  // Modifed by VE3OOI.  Frequency and resolution set too high for PWM.
+  // ledc is used to generate a PWM signal which simulates either a DC level
+  // (if fed into a cap) or a crude tone frequency (with lots of harmonics)
+  // ledc supports max frequency based on resolution bits. E.g. The maximum
+  // PWM frequency with resolution of 10 bits is 78.125KHz.
+  //  ledcSetup(0, 1E5, 12);            // smoke & mirrors for ESP32
+  ledcSetup(0, 1E4, 8);             // smoke & mirrors for ESP32
   ledcAttachPin(AUDIO, 0);          // since tone() not yet supported
   pinMode(LED, OUTPUT);             // LED, but could be keyer output instead
   pinMode(PADDLE_A, INPUT_PULLUP);  // two paddle inputs, both active low
@@ -1874,6 +1964,9 @@ void splashScreen()  // not splashy at all!
   tft.setTextColor(CYAN);
   tft.setCursor(15, 90);
   tft.print((char *)"Morse Code Tutor");  // add title
+  tft.setCursor(30, 140);
+  tft.setTextSize(2);
+  tft.print((char *)"VE3OOI Firmware v0.2");  // add title
   tft.setTextSize(1);
   tft.setCursor(50, 220);
   tft.setTextColor(WHITE);

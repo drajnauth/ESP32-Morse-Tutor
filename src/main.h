@@ -25,10 +25,45 @@
 #define DNS_CONNECTED  0x2      // Flag: connected to DNS and Querry OK
 #define SRV_CONNECTED  0x4      // Flag: connected to WiFi AP 
 #define WIFI_TIMEOUT 30         // Timeout in 500ms increments to timeout connecting to Access Point
-
+#define MAX_CHAR_STRING 30      // Maximum string for various string definations
+#define MAX_SSID_STRING 30     // Maximum string for SSID
+#define INIT_FLAG 0xAAA1        // Flag for eeprom - last digit is revision level
+#define DEFAULT_EEPROM_ADDRESS = 1000 // Starting address for EEPROM configuration strut
 
 // Processing MQTT
 #define MQTT_DELIMETER ':'
+#define MAX_MQTT_MSG_LEN 6     // Only allow 10 character messages xxnxxxx:x (x=alphabetic, n=digit)
+
+// Main Strut containing configuration data
+  typedef struct {
+    unsigned char flag;
+    int charSpeed;  // speed at which characters are sent, in WPM
+    int codeSpeed;  // overall code speed, in WPM
+    int pitch;  // frequency of audio output, in Hz
+    bool usePaddles;  // if true, using paddles; if false, straight key
+    int ditPaddle;    // digital pin attached to dit paddle
+    int dahPaddle;    // digital pin attached to dah paddle
+    int kochLevel;  // current Koch lesson #
+    int xWordSpaces;  // extra spaces between words
+
+    int keyerMode;  // current keyer mode
+    int startItem;   // startup activity.  0 = main menu
+    int brightness;  // backlight level (range 0-100%)
+    int score;   // copy challange score
+    int hits;    // copy challange correct #
+    int misses;  // copy channange incorrect #
+    int textColor;  // foreground (text) color
+    int bgColor;    // background (screen) color
+    char myCall[10];
+    char wifi_ssid[MAX_SSID_STRING];
+    char wifi_password[MAX_CHAR_STRING];
+    char mqtt_userid[MAX_CHAR_STRING];
+    char mqtt_password[MAX_CHAR_STRING];
+    char mqtt_server[MAX_CHAR_STRING];
+    char room[MAX_CHAR_STRING];
+  } TUTOR_STRUT;
+
+
 
 
 //===================================  Morse Code Constants
