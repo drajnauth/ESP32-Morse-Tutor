@@ -1,4 +1,16 @@
+#ifndef _MAIN_H_
+#define _MAIN_H_
+
 #include <Arduino.h>
+
+#include "network.h"
+
+// Added by VE3OOI
+#define MAX_CHAR_STRING 30  // Maximum string for various string definations
+#define MAX_SSID_STRING 30  // Maximum string for SSID
+#define INIT_FLAG 0xA1      // Flag for eeprom - last digit is revision level
+#define DEFAULT_EEPROM_ADDRESS \
+  128  // Starting address for EEPROM configuration strut
 
 //===================================  Hardware Connections
 //=============================
@@ -13,58 +25,6 @@
 #define AUDIO 13           // Audio output
 #define LED 2              // onboard LED pin
 #define SCREEN_ROTATION 3  // landscape mode: use '1' or '3'
-
-//===================================  Wireless Constants
-//===============================
-// Modified by VE3OOI
-#define MAXBUFLEN 100           // size of incoming character buffer
-
-// Added by VE3OOI
-// Connection Flags and defines
-#define AP_CONNECTED  0x1       // Flag: connected to WiFi AP
-#define DNS_CONNECTED  0x2      // Flag: connected to DNS and Querry OK
-#define SRV_CONNECTED  0x4      // Flag: connected to WiFi AP 
-#define WIFI_TIMEOUT 30         // Timeout in 500ms increments to timeout connecting to Access Point
-#define MAX_CHAR_STRING 30      // Maximum string for various string definations
-#define MAX_SSID_STRING 30     // Maximum string for SSID
-#define INIT_FLAG 0xAAA1        // Flag for eeprom - last digit is revision level
-#define DEFAULT_EEPROM_ADDRESS = 1000 // Starting address for EEPROM configuration strut
-
-// Processing MQTT
-#define MQTT_DELIMETER ':'
-#define MAX_MQTT_MSG_LEN 6     // Only allow 10 character messages xxnxxxx:x (x=alphabetic, n=digit)
-
-// Main Strut containing configuration data
-  typedef struct {
-    unsigned char flag;
-    int charSpeed;  // speed at which characters are sent, in WPM
-    int codeSpeed;  // overall code speed, in WPM
-    int pitch;  // frequency of audio output, in Hz
-    bool usePaddles;  // if true, using paddles; if false, straight key
-    int ditPaddle;    // digital pin attached to dit paddle
-    int dahPaddle;    // digital pin attached to dah paddle
-    int kochLevel;  // current Koch lesson #
-    int xWordSpaces;  // extra spaces between words
-
-    int keyerMode;  // current keyer mode
-    int startItem;   // startup activity.  0 = main menu
-    int brightness;  // backlight level (range 0-100%)
-    int score;   // copy challange score
-    int hits;    // copy challange correct #
-    int misses;  // copy channange incorrect #
-    int textColor;  // foreground (text) color
-    int bgColor;    // background (screen) color
-    char myCall[10];
-    char wifi_ssid[MAX_SSID_STRING];
-    char wifi_password[MAX_CHAR_STRING];
-    char mqtt_userid[MAX_CHAR_STRING];
-    char mqtt_password[MAX_CHAR_STRING];
-    char mqtt_server[MAX_CHAR_STRING];
-    char room[MAX_CHAR_STRING];
-  } TUTOR_STRUT;
-
-
-
 
 //===================================  Morse Code Constants
 //=============================
@@ -128,19 +88,45 @@
 #define ELEMENTS(x) \
   (sizeof(x) / sizeof(x[0]))  // Handy macro for determining array sizes
 
+// Added by VE3OOI
+// Main Strut containing configuration data
+typedef struct {
+  unsigned char flag;
+  int charSpeed;    // speed at which characters are sent, in WPM
+  int codeSpeed;    // overall code speed, in WPM
+  int pitch;        // frequency of audio output, in Hz
+  bool usePaddles;  // if true, using paddles; if false, straight key
+  int ditPaddle;    // digital pin attached to dit paddle
+  int dahPaddle;    // digital pin attached to dah paddle
+  int kochLevel;    // current Koch lesson #
+  int xWordSpaces;  // extra spaces between words
 
+  int keyerMode;   // current keyer mode
+  int startItem;   // startup activity.  0 = main menu
+  int brightness;  // backlight level (range 0-100%)
+  int score;       // copy challange score
+  int hits;        // copy challange correct #
+  int misses;      // copy channange incorrect #
+  int textColor;   // foreground (text) color
+  int bgColor;     // background (screen) color
+  char myCall[10];
+  char wifi_ssid[MAX_SSID_STRING];
+  char wifi_password[MAX_CHAR_STRING];
+  char mqtt_userid[MAX_CHAR_STRING];
+  char mqtt_password[MAX_CHAR_STRING];
+  char mqtt_server[MAX_CHAR_STRING];
+  char room[MAX_CHAR_STRING];
+} TUTOR_STRUT;
 
 // Added by VE3OOI
 // Function Prototypes
-void MQTTcallback(char *topic, byte *payload, unsigned int len);
-void processMQTT(void);
 
-void enQueue(char ch);
-char deQueue(void);
-void setStatusLED(int color);
-void sendWireless(uint8_t data);
-void closeWireless(void);
-void initWireless(void);
+//////
+void initializeMem(void);
+void printMem(void);
+void loadMem(void);
+void clearMem(void);
+void dumpMem(void);
 
 //////
 void buttonISR(void);
@@ -257,3 +243,5 @@ void initMorse(void);
 void initSD(void);
 void initScreen(void);
 void splashScreen(void);
+
+#endif  // _MAIN_H_

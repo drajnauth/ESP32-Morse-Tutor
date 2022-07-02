@@ -5,6 +5,7 @@
 #include <PubSubClient.h>
 
 #include "main.h"
+#include "network.h"
 
 // Added by VE3OOI
 extern char myCall[10];   // Defined in main.cpp

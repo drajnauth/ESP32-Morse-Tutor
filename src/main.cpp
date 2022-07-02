@@ -89,6 +89,7 @@ Bla..bla
 #include <PubSubClient.h>
 
 #include "main.h"
+#include "network.h"
 
 const word colors[] = {BLACK, BLUE,  NAVY,   RED,  MAROON,  GREEN,  LIME,
                        CYAN,  TEAL,  PURPLE, PINK, YELLOW,  ORANGE, BROWN,
@@ -266,14 +267,49 @@ char *menu2[] = {(char *)" Speed   ", (char *)" Chk Spd ", (char *)" Tone    ",
                  (char *)" Key     ", (char *)" Callsign", (char *)" Screen  ",
                  (char *)" Defaults", (char *)" Exit    "};
 
-unsigned char addr = 0;
+// Added by VE3OOI
+unsigned char addr = DEFAULT_EEPROM_ADDRESS;
 TUTOR_STRUT cfg;
+char eebuf[DEFAULT_EEPROM_ADDRESS + sizeof(cfg)];
 
 //===================================  Configutation Routines
 //===================================
+
+// Added by VE3OOI
+void clearMem(void) {
+  memset(eebuf, 0, sizeof(eebuf));
+  EEPROM.writeBytes(0, eebuf, sizeof(eebuf));
+  EEPROM.commit();
+}
+
+void dumpMem(void) {
+  memset(eebuf, 0, sizeof(eebuf));
+  EEPROM.readBytes(0, eebuf, sizeof(eebuf));
+  Serial.print("EEPROM Dump for ");
+  Serial.print(sizeof(eebuf));
+  Serial.println(" bytes");
+
+  Serial.println("Addr\tHex\tDec\tASCII");
+  for (int i = 0; i < sizeof(eebuf); i++) {
+    Serial.print(i);
+    Serial.print("\t");
+    Serial.print(eebuf[i], HEX);
+    Serial.print("\t");
+    Serial.print((unsigned char)eebuf[i]);
+    Serial.print("\t");
+    Serial.print((char)eebuf[i]);
+    Serial.println();
+  }
+}
+
+void loadMem(void) {
+  memset((char *)&cfg, 0, sizeof(cfg));
+  EEPROM.readBytes(addr, (char *)&cfg, sizeof(cfg));
+}
+
 void initializeMem(void) {
-  memset((char *)&cfg, NULL, sizeof(cfg));
-  cfg.flag = INIT_FLAG;
+  Serial.println("Initializing cfg and mem");
+  memset((char *)&cfg, 0, sizeof(cfg));
   cfg.flag = INIT_FLAG;
   cfg.charSpeed = DEFAULTSPEED;
   cfg.codeSpeed = DEFAULTSPEED;
@@ -301,36 +337,61 @@ void initializeMem(void) {
   strcpy(cfg.room, "morsetutor");
 
   EEPROM.writeBytes(addr, (char *)&cfg, sizeof(cfg));
+  EEPROM.commit();
 }
 
+// Added by VE3OOI
 void printMem(void) {
-  EEPROM.readBytes(addr, (char *)&cfg, sizeof(cfg));
-  Serial.print("\r\nEEPROM (");
-  Serial.print(addr);
-  Serial.println("): ");
-  Serial.println(charSpeed);
-  Serial.println(codeSpeed);
-  Serial.println(pitch);
-  Serial.println(ditPaddle);
-  Serial.println(kochLevel);
-  Serial.println(usePaddles);
-  Serial.println(xWordSpaces);
-  Serial.println(myCall);
-  Serial.println(keyerMode);
-  Serial.println(startItem);
-  Serial.println(brightness);
-  Serial.println(textColor);
-  Serial.println(textColor);
-  Serial.println(bgColor);
-  Serial.println(bgColor);
-  Serial.println(cfg.wifi_ssid);
-  Serial.println(cfg.wifi_password);
-  Serial.println(cfg.mqtt_userid);
-  Serial.println(cfg.mqtt_password);
-  Serial.println(cfg.mqtt_server);
-  Serial.println(cfg.room);
+  loadMem();
+  if (cfg.flag != INIT_FLAG) {
+    Serial.println("EEPROM config not defined");
+  } else {
+    Serial.print("\r\nEEPROM Config at Addr: ");
+    Serial.print(addr);
+    Serial.print(" size: ");
+    Serial.println(sizeof(cfg));
+    Serial.print("  flag: ");
+    Serial.println(cfg.flag);
+    Serial.print("  charSpeed: ");
+    Serial.println(cfg.charSpeed);
+    Serial.print("  codeSpeed: ");
+    Serial.println(cfg.codeSpeed);
+    Serial.print("  pitch: ");
+    Serial.println(cfg.pitch);
+    Serial.print("  ditPaddle: ");
+    Serial.println(cfg.ditPaddle);
+    Serial.print("  kochLevel: ");
+    Serial.println(cfg.kochLevel);
+    Serial.print("  usePaddles");
+    Serial.println(cfg.usePaddles);
+    Serial.print("  xWordSpaces: ");
+    Serial.println(cfg.xWordSpaces);
+    Serial.print("  myCall: ");
+    Serial.println(cfg.myCall);
+    Serial.print("  keyerMode: ");
+    Serial.println(cfg.keyerMode);
+    Serial.print("  startItem: ");
+    Serial.println(cfg.startItem);
+    Serial.print("  brightness: ");
+    Serial.println(cfg.brightness);
+    Serial.print("  textColor: ");
+    Serial.println(cfg.textColor);
+    Serial.print("  bgColor: ");
+    Serial.println(cfg.bgColor);
+    Serial.print("  wifi_ssid: ");
+    Serial.println(cfg.wifi_ssid);
+    Serial.print("  wifi_password: ");
+    Serial.println(cfg.wifi_password);
+    Serial.print("  mqtt_userid: ");
+    Serial.println(cfg.mqtt_userid);
+    Serial.print("  mqtt_password: ");
+    Serial.println(cfg.mqtt_password);
+    Serial.print("  mqtt_server: ");
+    Serial.println(cfg.mqtt_server);
+    Serial.print("  room: ");
+    Serial.println(cfg.room);
+  }
 }
-
 //===================================  Wireless Code
 //===================================
 
@@ -1885,7 +1946,7 @@ int subMenu(char *menu[],
         top--;                               // yes: move frame up,
         displayFrame(menu, top, itemCount);  // display it,
         index--;                             // and select previous item
-      } else  // we must be moving within the frame
+      } else  // we must be moving within the itemEEPROMframe
       {
         y = TOPMARGIN + pos * ROWSPACING;  // calc y-coord of current item
         showMenuItem(menu[index], x, y, FG,
@@ -1977,13 +2038,24 @@ void splashScreen()  // not splashy at all!
 void setup() {
   Serial.begin(115200);  // for debugging only
   initScreen();          // blank screen in landscape mode
-  EEPROM.begin(32);      // ESP32 specific for 32 bytes Flash
-  initSD();              // initialize SD library
-  loadConfig();          // get saved values from EEPROM
-  splashScreen();        // show we are ready
-  initEncoder();         // attach encoder interrupts
-  initMorse();           // attach paddles & adjust speed
-  delay(2000);           // keep splash screen on for a while
+  // Changed by VE3OOI
+  EEPROM.begin(sizeof(eebuf));  // ESP32 specific for bytes used of flash
+
+  initSD();      // initialize SD library
+  loadConfig();  // get saved values from EEPROM
+
+  // Added by VE3OOI
+  loadMem();
+  if (cfg.flag != INIT_FLAG) {
+    Serial.println("Wrong EEPROM Flag...Initializing");
+    initializeMem();
+  }
+  printMem();
+
+  splashScreen();  // show we are ready
+  initEncoder();   // attach encoder interrupts
+  initMorse();     // attach paddles & adjust speed
+  delay(2000);     // keep splash screen on for a while
   clearScreen();
 }
 
