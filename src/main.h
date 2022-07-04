@@ -100,7 +100,6 @@ typedef struct {
   int dahPaddle;    // digital pin attached to dah paddle
   int kochLevel;    // current Koch lesson #
   int xWordSpaces;  // extra spaces between words
-
   int keyerMode;   // current keyer mode
   int startItem;   // startup activity.  0 = main menu
   int brightness;  // backlight level (range 0-100%)
@@ -123,8 +122,6 @@ typedef struct {
 
 //////
 void initializeMem(void);
-void printMem(void);
-void loadMem(void);
 void clearMem(void);
 void dumpMem(void);
 
