@@ -6,6 +6,7 @@
 
 #include "main.h"
 #include "network.h"
+#include "UART.h"  // VE3OOI Serial Interface Routines (TTY Commands)
 
 // Added by VE3OOI
 extern char myCall[10];   // Defined in main.cpp

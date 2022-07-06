@@ -87,6 +87,7 @@ Wireless transmission craps out if there is a buffer overflow (its silient
 // added by VE3OOI
 #include <PubSubClient.h>
 
+#include "UART.h"
 #include "main.h"
 #include "network.h"
 
@@ -246,7 +247,7 @@ bool paused = false;           // if true, morse output is paused
 bool ditRequest = false;       // dit memory for iambic sending
 bool dahRequest = false;       // dah memory for iambic sending
 bool inStartup = true;         // startup flag
-char myCall[10] = "W8BH";
+char myCall[MAX_CALLSIGN_STRING] = "W8BH";
 int textColor = TEXTCOLOR;  // foreground (text) color
 int bgColor = BG;           // background (screen) color
 int brightness = 100;       // backlight level (range 0-100%)
@@ -264,12 +265,26 @@ char *menu1[] = {(char *)" Practice", (char *)" Copy One", (char *)" Copy Two",
                  (char *)" Head Cpy", (char *)" Two-Way ", (char *)" Exit    "};
 char *menu2[] = {(char *)" Speed   ", (char *)" Chk Spd ", (char *)" Tone    ",
                  (char *)" Key     ", (char *)" Callsign", (char *)" Screen  ",
-                 (char *)" Defaults", (char *)" Exit    "};
+                 (char *)" Defaults", (char *)" CLI    ",  (char *)" Exit    "};
 
 // Added by VE3OOI
 unsigned char addr = DEFAULT_EEPROM_ADDRESS;
 TUTOR_STRUT cfg;
 char eebuf[DEFAULT_EEPROM_ADDRESS + sizeof(cfg)];
+#ifndef REMOVE_CLI
+extern char rbuff[RBUFF];
+extern char commands[MAX_COMMAND_ENTRIES];
+extern unsigned char command_entries;
+extern unsigned long numbers[MAX_COMMAND_ENTRIES];
+extern unsigned char ctr;
+extern char prompt[6];
+extern char ovflmsg[9];
+extern char errmsg[4];
+
+#define MAXIMUM_STRING_LENGTH 80
+char line[MAXIMUM_STRING_LENGTH];
+
+#endif
 
 //===================================  Wireless Code
 //===================================
@@ -1276,80 +1291,82 @@ void initializeMem(void) {
 
   // Make sure that strings are less than MAX_CHAR_STRING or MAX_SSID_STRING
   // else bad things happen
+  // can hardcode default here instead of running CLI to define
   strcpy(cfg.myCall, "W8BH");
-  strcpy(cfg.wifi_ssid, "IKILLU_SLOW");
-  strcpy(cfg.wifi_password, "feedface012345678910111213");
-  strcpy(cfg.mqtt_userid, "user1");
-  strcpy(cfg.mqtt_password, "1234");
-  strcpy(cfg.mqtt_server, "ve3ooi.ddns.net");
-  strcpy(cfg.room, "morsetutor");
-
+  strcpy(cfg.wifi_ssid, "*****");
+  strcpy(cfg.wifi_password, "*****");
+  strcpy(cfg.mqtt_userid, "*****");
+  strcpy(cfg.mqtt_password, "*****");
+  strcpy(cfg.mqtt_server, "*****");
+  strcpy(cfg.room, "*****");
+  setRunningConfig();
   saveConfig();
 }
 
 // Modified by VE3OOI
-void printConfig(void)  // debugging only; not called
+void printConfig(unsigned char ee)  // debugging only; not called
 {
-  loadConfig();
-  if (cfg.flag != INIT_FLAG) {
-    Serial.println("EEPROM config not defined");
-  } else {
-    Serial.print("\r\nEEPROM Config at Addr: ");
-    Serial.print(addr);
-    Serial.print(" size: ");
-    Serial.println(sizeof(cfg));
-    Serial.print("  flag: ");
-    Serial.println(cfg.flag);
-    Serial.print("  charSpeed: ");
-    Serial.println(cfg.charSpeed);
-    Serial.print("  codeSpeed: ");
-    Serial.println(cfg.codeSpeed);
-    Serial.print("  pitch: ");
-    Serial.println(cfg.pitch);
-    Serial.print("  ditPaddle: ");
-    Serial.println(cfg.ditPaddle);
-    Serial.print("  kochLevel: ");
-    Serial.println(cfg.kochLevel);
-    Serial.print("  usePaddles");
-    Serial.println(cfg.usePaddles);
-    Serial.print("  xWordSpaces: ");
-    Serial.println(cfg.xWordSpaces);
-    Serial.print("  myCall: ");
-    Serial.println(cfg.myCall);
-    Serial.print("  keyerMode: ");
-    Serial.println(cfg.keyerMode);
-    Serial.print("  startItem: ");
-    Serial.println(cfg.startItem);
-    Serial.print("  brightness: ");
-    Serial.println(cfg.brightness);
-    Serial.print("  textColor: ");
-    Serial.println(cfg.textColor);
-    Serial.print("  bgColor: ");
-    Serial.println(cfg.bgColor);
-    Serial.print("  wifi_ssid: ");
-    Serial.println(cfg.wifi_ssid);
-    Serial.print("  wifi_password: ");
-    Serial.println(cfg.wifi_password);
-    Serial.print("  mqtt_userid: ");
-    Serial.println(cfg.mqtt_userid);
-    Serial.print("  mqtt_password: ");
-    Serial.println(cfg.mqtt_password);
-    Serial.print("  mqtt_server: ");
-    Serial.println(cfg.mqtt_server);
-    Serial.print("  room: ");
-    Serial.println(cfg.room);
-  }
-  /*
-    Serial.println("EEPROM contents");
+  TUTOR_STRUT cfgbck;
 
-    for (int i = 0; i < 25; i++) {
-      int value = EEPROM.read(i);
-      Serial.print(i);
-      Serial.print(": ");
-      Serial.println(value, HEX);
+  if (ee) {
+    memset((char *)&cfgbck, 0, sizeof(cfgbck));
+    memcpy((char *)&cfgbck, (char *)&cfg,
+           sizeof(cfgbck));  // backup running config
+    loadConfig();
+    if (cfg.flag != INIT_FLAG) {
+      return;
     }
-    Serial.println();
-  */
+  }
+  Serial.print("\r\nEEPROM Config at Addr: ");
+  Serial.print(addr);
+  Serial.print(" size: ");
+  Serial.println(sizeof(cfg));
+  Serial.print("  flag: ");
+  Serial.println(cfg.flag);
+  Serial.print("  charSpeed: ");
+  Serial.println(cfg.charSpeed);
+  Serial.print("  codeSpeed: ");
+  Serial.println(cfg.codeSpeed);
+  Serial.print("  pitch: ");
+  Serial.println(cfg.pitch);
+  Serial.print("  ditPaddle: ");
+  Serial.println(cfg.ditPaddle);
+  Serial.print("  kochLevel: ");
+  Serial.println(cfg.kochLevel);
+  Serial.print("  usePaddles");
+  Serial.println(cfg.usePaddles);
+  Serial.print("  xWordSpaces: ");
+  Serial.println(cfg.xWordSpaces);
+  Serial.print("  myCall: ");
+  Serial.println(cfg.myCall);
+  Serial.print("  keyerMode: ");
+  Serial.println(cfg.keyerMode);
+  Serial.print("  startItem: ");
+  Serial.println(cfg.startItem);
+  Serial.print("  brightness: ");
+  Serial.println(cfg.brightness);
+  Serial.print("  textColor: ");
+  Serial.println(cfg.textColor);
+  Serial.print("  bgColor: ");
+  Serial.println(cfg.bgColor);
+  Serial.print("  wifi_ssid: ");
+  Serial.println(cfg.wifi_ssid);
+  Serial.print("  wifi_password: ");
+  Serial.println(cfg.wifi_password);
+  Serial.print("  mqtt_userid: ");
+  Serial.println(cfg.mqtt_userid);
+  Serial.print("  mqtt_password: ");
+  Serial.println(cfg.mqtt_password);
+  Serial.print("  mqtt_server: ");
+  Serial.println(cfg.mqtt_server);
+  Serial.print("  room: ");
+  Serial.println(cfg.room);
+
+  if (ee) {  // loadConfig sets running config, need to restore back to original
+    memcpy((char *)&cfg, (char *)&cfgbck,
+           sizeof(cfg));  // restore running config
+    setRunningConfig();
+  }
 }
 
 // Modified by VE3OOI
@@ -1370,38 +1387,9 @@ void saveConfig(void) {
 
   EEPROM.writeBytes(addr, (char *)&cfg, sizeof(cfg));
   EEPROM.commit();
-
-  /*
-  EEPROM.write(0, 42);                    // the answer to everything
-  EEPROM.write(1, charSpeed);             // save the character speed in wpm
-  EEPROM.write(2, codeSpeed);             // save overall code speed in wpm
-  EEPROM.write(3, pitch / 10);            // save pitch as 1/10 of value
-  EEPROM.write(4, ditPaddle);             // save pin corresponding to 'dit'
-  EEPROM.write(5, kochLevel);             // save current Koch lesson #
-  EEPROM.write(6, usePaddles);            // save key type
-  EEPROM.write(7, xWordSpaces);           // save extra word spaces
-  for (int i = 0; i < 10; i++)            // save callsign,
-    EEPROM.write(8 + i, myCall[i]);       // one letter at a time
-  EEPROM.write(18, keyerMode);            // save keyer mode (1=A, 2=B)
-  EEPROM.write(19, startItem);            // save startup activity
-  EEPROM.write(20, brightness);           // save screen brightness
-  EEPROM.write(21, highByte(textColor));  // save text color
-  EEPROM.write(22, lowByte(textColor));
-  EEPROM.write(23, highByte(bgColor));  // save background color
-  EEPROM.write(24, lowByte(bgColor));
-  EEPROM.commit();  // ESP32 only
-*/
 }
 
-// Modified by VE3OOI
-void loadConfig(void) {
-  memset((char *)&cfg, 0, sizeof(cfg));
-  EEPROM.readBytes(addr, (char *)&cfg, sizeof(cfg));
-  if (cfg.flag != INIT_FLAG) {
-    Serial.println("EEPROM config not defined");
-    initializeMem();
-  }
-
+void setRunningConfig(void) {
   charSpeed = cfg.charSpeed;
   codeSpeed = cfg.codeSpeed;
   pitch = cfg.pitch;
@@ -1417,28 +1405,18 @@ void loadConfig(void) {
   bgColor = cfg.bgColor;
 
   checkConfig();  // ensure loaded settings are valid
+}
 
-  /*
-    int flag = EEPROM.read(0);  // saved values been saved before?
-    if (flag == 42)             // yes, so load saved parameters
-    {
-      charSpeed = EEPROM.read(1);
-      codeSpeed = EEPROM.read(2);
-      pitch = EEPROM.read(3) * 10;
-      ditPaddle = EEPROM.read(4);
-      kochLevel = EEPROM.read(5);
-      usePaddles = EEPROM.read(6);
-      xWordSpaces = EEPROM.read(7);
-      for (int i = 0; i < 10; i++) myCall[i] = EEPROM.read(8 + i);
-      keyerMode = EEPROM.read(18);
-      startItem = EEPROM.read(19);
-      brightness = EEPROM.read(20);
-      textColor = (EEPROM.read(21) << 8)  // add color high byte
-                  + EEPROM.read(22);      // and color low byte
-      bgColor = (EEPROM.read(23) << 8) + EEPROM.read(24);
-      checkConfig();  // ensure loaded settings are valid
-    }
-  */
+// Modified by VE3OOI
+void loadConfig(void) {
+  memset((char *)&cfg, 0, sizeof(cfg));
+  EEPROM.readBytes(addr, (char *)&cfg, sizeof(cfg));
+  if (cfg.flag != INIT_FLAG) {
+    Serial.println("EEPROM config not defined. Running config not defined!!");
+    Serial.println("Restart or use CLI to initialize EEPROM");
+  } else {
+    setRunningConfig();
+  }
 }
 
 // Modified by VE3OOI
@@ -2064,22 +2042,23 @@ void initEncoder() {
   attachInterrupt(digitalPinToInterrupt(ENCODER_B), rotaryISR, CHANGE);
 }
 
-/*
-***** VE3OOI - There is an error here with ledcSetup.  This must be fixed.
-00,hd_drv:0xE (844) ledc: requested frequency and duty resolution can not be
-achieved, try reducing freq_hz or duty_resolution. div_param=50 [
-848][E][esp32-hal-ledc.c:75] ledcSetup(): ledc setup failed!
-*/
 void initMorse() {
-  // Modifed by VE3OOI.  Frequency and resolution set too high for PWM.
-  // ledc is used to generate a PWM signal which simulates either a DC level
-  // (if fed into a cap) or a crude tone frequency (with lots of harmonics)
-  // ledc supports max frequency based on resolution bits. E.g. The maximum
-  // PWM frequency with resolution of 10 bits is 78.125KHz.
+  // Modifed by VE3OOI. /
+  /* There was an error with ledcSetup.
+    00,hd_drv:0xE (844) ledc: requested frequency and duty resolution can not be
+    achieved, try reducing freq_hz or duty_resolution. div_param=50 [
+    848][E][esp32-hal-ledc.c:75] ledcSetup(): ledc setup failed!
+
+  Issue is that frequency and resolution set too high for PWM.
+  ledc is used to generate a PWM signal which simulates either a DC level
+  (if fed into a cap) or a crude tone frequency (with lots of harmonics)
+  ledc supports max frequency based on resolution bits. E.g. The maximum
+  PWM frequency with resolution of 10 bits is 78.125KHz.
+  */
   //  ledcSetup(0, 1E5, 12);            // smoke & mirrors for ESP32
-  ledcSetup(0, 1E4, 8);             // smoke & mirrors for ESP32
-  ledcAttachPin(AUDIO, 0);          // since tone() not yet supported
-  pinMode(LED, OUTPUT);             // LED, but could be keyer output instead
+  ledcSetup(0, 1E4, 8);     // Modified by VE3OOI to allow for proper resolution
+  ledcAttachPin(AUDIO, 0);  // since tone() not yet supported
+  pinMode(LED, OUTPUT);     // LED, but could be keyer output instead
   pinMode(PADDLE_A, INPUT_PULLUP);  // two paddle inputs, both active low
   pinMode(PADDLE_B, INPUT_PULLUP);
   ditPeriod = intracharDit();            // set up character timing from WPM
@@ -2113,7 +2092,7 @@ void splashScreen()  // not splashy at all!
   tft.print((char *)"Morse Code Tutor");  // add title
   tft.setCursor(30, 140);
   tft.setTextSize(2);
-  tft.print((char *)"VE3OOI Firmware v0.2");  // add title
+  tft.print((char *)"VE3OOI Firmware v0.1");  // add title
   tft.setTextSize(1);
   tft.setCursor(50, 220);
   tft.setTextColor(WHITE);
@@ -2129,24 +2108,22 @@ void setup() {
 
   initSD();  // initialize SD library
 
-  Serial.println("Loading EEPROM");
-  loadConfig();  // get saved values from EEPROM
-
-  Serial.println("Checking Flag");
   // Added by VE3OOI
+#ifndef REMOVE_CLI
+  resetSerial();
+#endif
+  loadConfig();  // get saved values from EEPROM
   if (cfg.flag != INIT_FLAG) {
-    Serial.println("Wrong EEPROM Flag...Initializing");
+    Serial.println("Initializing EEPROM");
     initializeMem();
   }
-
-  Serial.println("Printing config");
-  printConfig();
 
   splashScreen();  // show we are ready
   initEncoder();   // attach encoder interrupts
   initMorse();     // attach paddles & adjust speed
   delay(2000);     // keep splash screen on for a while
   clearScreen();
+  resetSerial();
 }
 
 void loop() {
@@ -2160,7 +2137,8 @@ void loop() {
   randomSeed(millis());      // randomize!
   score = 0;
   hits = 0;
-  misses = 0;         // restart score for copy challenges
+  misses = 0;  // restart score for copy challenges
+
   switch (selection)  // do action requested by user
   {
     case 00:
@@ -2234,6 +2212,254 @@ void loop() {
     case 26:
       useDefaults();
       break;
+    case 27:
+      openCLI();
+      break;
     default:;
   }
 }
+
+void openCLI(void) {
+#ifndef REMOVE_CLI
+  printBanner();
+  resetSerial();
+  printPrompt();
+
+  while (!button_pressed)  // exit on button press
+  {
+    processSerial();
+  }
+  resetSerial();
+
+#else
+  Serial.println("CLI Not Implemented")
+#endif
+}
+
+#ifndef REMOVE_CLI
+
+// Place program specific content here
+void executeSerial(char *str) {
+  // num defined the actual number of entries process from the serial buffer
+  // i is a generic counter
+
+  // This function called when serial input in present in the serial buffer
+  // The serial buffer is parsed and characters and numbers are scraped and
+  // entered in the commands[] and numbers[] variables.
+  parseSerial(str);
+
+  // Process the commands
+  // Note: Whenever a parameter is stated as [CLK] the square brackets are not
+  // entered. The square brackets means that this is a command line parameter
+  // entered after the command. E.g. F [n] [m] would be mean "F 0 7000000" is
+  // entered (no square brackets entered)
+  switch (commands[0]) {
+    case 'E':  // Erase EEPROM
+      clearMem();
+      break;
+
+    case 'C':  // Get call sign
+      Serial.print("Current: ");
+      Serial.println(cfg.myCall);
+      readSerialLine((char *)"Call Sign: ", MAX_CALLSIGN_STRING);
+      if (strlen(line) > MIN_STRING) {
+        Serial.print("\r\nChanging: ");
+        Serial.print(cfg.myCall);
+        Serial.print(" to: ");
+        Serial.println(line);
+        // already forced checking for array size MAX_CHAR_STRING
+        // forced "line" to be zero filled so no danger of buffer overflow here
+        memset(cfg.myCall, 0, sizeof(cfg.myCall));
+        strncpy(cfg.myCall, line, strlen(line));
+        strncpy(myCall, line, strlen(line));
+      } else {
+        Serial.println("Empty input");
+      }
+      break;
+
+    case 'D':  // Dump EEPROM
+      dumpMem();
+      break;
+
+    case 'H':  // Help
+      Serial.println("Help:");
+      Serial.println("A [E|N|P|D]");
+      Serial.println("E - erase eeprom");
+      Serial.println("D - dump eeprom");
+      Serial.println("I - init eeprom");
+      Serial.println("M - enter server name");
+      Serial.println("P - print current config");
+      Serial.println("P E - print eeprom config");
+      Serial.println("M - enter room name");
+      Serial.println("S - save current config");
+      Serial.println("U U - enter MQTT username");
+      Serial.println("U P - enter MQTT password");
+      Serial.println("W S - enter Wi-Fi SSID");
+      Serial.println("W P - enter Wi-Fi password");
+      break;
+
+    case 'I':  // Initialize EEPROM
+      initializeMem();
+      break;
+
+    case 'L':  // Load config EEPROM
+      loadConfig();
+      break;
+
+    case 'M':  // Get MQTT Server name
+      Serial.print("Current: ");
+      Serial.println(cfg.mqtt_server);
+      readSerialLine((char *)"Server DNS Name: ", MAX_CHAR_STRING);
+      if (strlen(line) > MIN_STRING) {
+        Serial.print("\r\nChanging: ");
+        Serial.print(cfg.mqtt_server);
+        Serial.print(" to: ");
+        Serial.println(line);
+        // already forced checking for array size MAX_CHAR_STRING
+        // forced "line" to be zero filled so no danger of buffer overflow here
+        memset(cfg.mqtt_server, 0, sizeof(cfg.mqtt_server));
+        strncpy(cfg.mqtt_server, line, strlen(line));
+      } else {
+        Serial.println("Empty input");
+      }
+      break;
+
+    case 'P':  // Print memory Config
+      if (commands[1] == 'E') {
+        printConfig(true);  // print out saved EEPROM config
+      } else {
+        printConfig(false);  // print out running (i.e. loaded) config
+      }
+      break;
+
+    case 'R':  // Get MQTT Topic which I call room
+      Serial.print("Current: ");
+      Serial.println(cfg.room);
+      readSerialLine((char *)"Room Name: ", MAX_CHAR_STRING);
+      if (strlen(line) > MIN_STRING) {
+        Serial.print("\r\nChanging: ");
+        Serial.print(cfg.room);
+        Serial.print(" to: ");
+        Serial.println(line);
+        // already forced checking for array size MAX_CHAR_STRING
+        // forced "line" to be zero filled so no danger of buffer overflow here
+        memset(cfg.room, 0, sizeof(cfg.room));
+        strncpy(cfg.room, line, strlen(line));
+      } else {
+        Serial.println("Empty input");
+      }
+      break;
+
+    case 'S':  // save current memory Config
+      saveConfig();
+      break;
+
+    case 'U':  // Print memory Config
+      if (commands[1] == 'U') {
+        Serial.print("Current: ");
+        Serial.println(cfg.mqtt_userid);
+        readSerialLine((char *)"Enter username: ", MAX_CHAR_STRING);
+      } else if (commands[1] == 'P') {
+        Serial.print("Current: ");
+        Serial.println(cfg.mqtt_password);
+        readSerialLine((char *)"Enter password: ", MAX_CHAR_STRING);
+      } else {
+        Serial.println("Usage: 'U U' or 'U P'");
+        break;
+      }
+      if (strlen(line) > MIN_STRING && commands[1] == 'U') {
+        Serial.print("\r\nChanging: ");
+        Serial.print(cfg.mqtt_userid);
+        Serial.print(" to: ");
+        Serial.println(line);
+        // already forced checking for array size MAX_CHAR_STRING
+        // forced "line" to be zero filled so no danger of buffer overflow here
+        memset(cfg.mqtt_userid, 0, sizeof(cfg.mqtt_userid));
+        strncpy(cfg.mqtt_userid, line, strlen(line));
+      } else if (strlen(line) > MIN_STRING && commands[1] == 'P') {
+        Serial.print("\r\nChanging: ");
+        Serial.print(cfg.mqtt_password);
+        Serial.print(" to: ");
+        Serial.println(line);
+        // already forced checking for array size MAX_CHAR_STRING
+        // forced "line" to be zero filled so no danger of buffer overflow here
+        memset(cfg.mqtt_password, 0, sizeof(cfg.mqtt_password));
+        strncpy(cfg.mqtt_password, line, strlen(line));
+      } else
+        Serial.println("Empty input");
+      break;
+
+    case 'W':  // Print memory Config
+      if (commands[1] == 'S') {
+        Serial.print("Current: ");
+        Serial.println(cfg.wifi_ssid);
+        readSerialLine((char *)"Enter SSID: ", MAX_CHAR_STRING);
+      } else if (commands[1] == 'P') {
+        Serial.print("Current: ");
+        Serial.println(cfg.wifi_password);
+        readSerialLine((char *)"Enter password: ", MAX_CHAR_STRING);
+      } else {
+        Serial.println("Usage: 'W S' or 'W P'");
+        break;
+      }
+      if (strlen(line) > MIN_STRING && commands[1] == 'S') {
+        Serial.print("\r\nChanging: ");
+        Serial.print(cfg.wifi_ssid);
+        Serial.print(" to: ");
+        Serial.println(line);
+        // already forced checking for array size MAX_CHAR_STRING
+        // forced "line" to be zero filled so no danger of buffer overflow here
+        memset(cfg.wifi_ssid, 0, sizeof(cfg.wifi_ssid));
+        strncpy(cfg.wifi_ssid, line, strlen(line));
+      } else if (strlen(line) > MIN_STRING && commands[1] == 'P') {
+        Serial.print("\r\nChanging: ");
+        Serial.print(cfg.wifi_password);
+        Serial.print(" to: ");
+        Serial.println(line);
+        // already forced checking for array size MAX_CHAR_STRING
+        // forced "line" to be zero filled so no danger of buffer overflow here
+        memset(cfg.wifi_password, 0, sizeof(cfg.wifi_password));
+        strncpy(cfg.wifi_password, line, strlen(line));
+      } else
+        Serial.println("Empty input");
+      break;
+
+    // If an undefined command is entered, display an error message
+    default:
+      errorOut();
+  }
+}
+
+void readSerialLine(char *inprompt, int size) {
+  char input = 0;
+  unsigned char i = 0;
+  unsigned char again = true;
+
+  memset(line, 0, sizeof(line));
+  Serial.print(inprompt);
+  Serial.flush();  // Flush output buffer
+
+  do {
+    if (Serial.available() > 0) {
+      char input = Serial.read();
+      if (isPrintable(input)) {
+#ifdef TERMINAL_ECHO
+        Serial.print(input);  // Echo input
+#endif
+        line[i++] = input;
+        if (i >= size) again = false;
+      } else {
+        if (input == 0xA || input == 0xD) {
+          again = false;
+          Serial.read();  // Read any remaining CR LF characters in buffer
+        }
+      }
+    }
+  } while (again);
+  if (i >= size) {
+    Serial.println("String Too Long");
+    memset(line, 0, sizeof(line));
+  }
+}
+
+#endif  // REMOVE_CLI

@@ -6,11 +6,20 @@
 #include "network.h"
 
 // Added by VE3OOI
-#define MAX_CHAR_STRING 30  // Maximum string for various string definations
-#define MAX_SSID_STRING 30  // Maximum string for SSID
-#define INIT_FLAG 0xA1      // Flag for eeprom - last digit is revision level
+#define MIN_STRING 2  // String must be at least 2 characters in length. Error checking for null input
+#define MAX_SERVER_STRING 40  // Maximum string for dns server name
+#define MAX_CHAR_STRING 30    // Maximum string for various string definations
+#define MAX_SSID_STRING 50    // Maximum string for SSID and SSID password
+#define INIT_FLAG 0xA1        // Flag for eeprom - last digit is revision level
+#define MAX_CALLSIGN_STRING 10  // Maximum string for call sign
 #define DEFAULT_EEPROM_ADDRESS \
-  128  // Starting address for EEPROM configuration strut
+  0  // Starting address for EEPROM configuration strut
+
+// Added by VE3OOI for UART CLI
+// Note: main.h needs to be loaded before any other h file AND must be loaded in
+// each cpp file!!!!!
+//#define REMOVE_CLI // uncomment this line to remove CLI routines
+#define TERMINAL_ECHO 1  // Enable local echo
 
 //===================================  Hardware Connections
 //=============================
@@ -100,21 +109,23 @@ typedef struct {
   int dahPaddle;    // digital pin attached to dah paddle
   int kochLevel;    // current Koch lesson #
   int xWordSpaces;  // extra spaces between words
-  int keyerMode;   // current keyer mode
-  int startItem;   // startup activity.  0 = main menu
-  int brightness;  // backlight level (range 0-100%)
-  int score;       // copy challange score
-  int hits;        // copy challange correct #
-  int misses;      // copy channange incorrect #
-  int textColor;   // foreground (text) color
-  int bgColor;     // background (screen) color
-  char myCall[10];
+  int keyerMode;    // current keyer mode
+  int startItem;    // startup activity.  0 = main menu
+  int brightness;   // backlight level (range 0-100%)
+  int score;        // copy challange score
+  int hits;         // copy challange correct #
+  int misses;       // copy channange incorrect #
+  int textColor;    // foreground (text) color
+  int bgColor;      // background (screen) color
+  char myCall[MAX_CALLSIGN_STRING];
   char wifi_ssid[MAX_SSID_STRING];
-  char wifi_password[MAX_CHAR_STRING];
+  char wifi_password[MAX_SSID_STRING];
   char mqtt_userid[MAX_CHAR_STRING];
   char mqtt_password[MAX_CHAR_STRING];
-  char mqtt_server[MAX_CHAR_STRING];
-  char room[MAX_CHAR_STRING];
+  char mqtt_server[MAX_CHAR_STRING];  // FQDN for the server.  Default is
+                                      // "ve3ooi.ddns.net"
+  char room[MAX_CHAR_STRING];  // this is actually MQTT "topic" but I called it
+                               // room for simplicity. Default if "morsetutor"
 } TUTOR_STRUT;
 
 // Added by VE3OOI
@@ -124,6 +135,10 @@ typedef struct {
 void initializeMem(void);
 void clearMem(void);
 void dumpMem(void);
+void openCLI(void);
+void executeSerial(char *str);
+void readSerialLine(char *inprompt, int size);
+void setRunningConfig(void);
 
 //////
 void buttonISR(void);
@@ -201,7 +216,7 @@ void mimic(char *text);
 void flashcards(void);
 
 void twoWay(void);
-void printConfig(void);
+void printConfig(unsigned char ee);
 void saveConfig(void);
 void loadConfig(void);
 void checkConfig(void);
