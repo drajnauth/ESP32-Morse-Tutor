@@ -70,6 +70,40 @@ characters. There were problems with sending MQTT messages that are too long.
 Wireless transmission craps out if there is a buffer overflow (its silient
 - no errors generated - means no checks in place for MQTT library)
 
+11. Added CLI to config menu option to allow use of CLI to define parameters.
+Currently it only addresses updates I made, but can be easily updated to allow
+changing of ANY configuration parameter. Currently, I kept the local defined
+config parameter but used a structure that is written to EEPROM The structure is
+used directly by my updates.  W8BGH config parameters are stores and retrieved
+from the config structure.
+
+The CLI allows for changing of any of the config parameters that used by my
+code.   Specifically:
+ char wifi_ssid[MAX_SSID_STRING];  // SSID to connect WiFi.  Note maximum length
+ char wifi_password[MAX_SSID_STRING]; // password to connect WiFi.  Note maximum
+length char mqtt_userid[MAX_CHAR_STRING]; // userid to connect MQTT Server. Will
+be provided to you char mqtt_password[MAX_CHAR_STRING]; // password to connect
+MQTT Server.  Will be provided to you char mqtt_server[MAX_CHAR_STRING]; // MQTT
+server DNS name.  Will be provided to you char room[MAX_CHAR_STRING];// MQTT
+Topic which I call room.  Will be provided to you
+
+Defaults for the above can be hardcoded via several defines (see network.h):
+  #define DEFAULT_SSID "Enter your SSID here";
+  #define DEFAULT_WIFI_PASSWORD "Enter WIFI password here";
+  #define DEFAULT_MQTT_USERNAME "Enter provided MQTT username here";
+  #define DEFAULT_MQTT_PASSWORD "Enter provided MQTT password here";
+  #define DEFAULT_SERVER_ADDRESS "Enter provided MQTT server DNS name here";
+
+Enter "H" at CLI for help - listing of commands.
+
+CLI is currently configured for com port running 115200.
+
+If you have double charaters when you type at CLI, comment the local echo define
+(see mail.h) #define TERMINAL_ECHO 1  // Enable local echo
+
+If you don't want a CLI (e.g. to save RAM and Flash memory usage), uncomment the
+following define (see mail.h)
+//#define REMOVE_CLI // uncomment this line to remove CLI routines
 
 */
 
@@ -247,7 +281,7 @@ bool paused = false;           // if true, morse output is paused
 bool ditRequest = false;       // dit memory for iambic sending
 bool dahRequest = false;       // dah memory for iambic sending
 bool inStartup = true;         // startup flag
-char myCall[MAX_CALLSIGN_STRING] = "W8BH";
+char myCall[MAX_CALLSIGN_STRING] = DEFAULT_CALL;
 int textColor = TEXTCOLOR;  // foreground (text) color
 int bgColor = BG;           // background (screen) color
 int brightness = 100;       // backlight level (range 0-100%)
@@ -1292,13 +1326,15 @@ void initializeMem(void) {
   // Make sure that strings are less than MAX_CHAR_STRING or MAX_SSID_STRING
   // else bad things happen
   // can hardcode default here instead of running CLI to define
-  strcpy(cfg.myCall, "W8BH");
-  strcpy(cfg.wifi_ssid, "*****");
-  strcpy(cfg.wifi_password, "*****");
-  strcpy(cfg.mqtt_userid, "*****");
-  strcpy(cfg.mqtt_password, "*****");
-  strcpy(cfg.mqtt_server, "*****");
-  strcpy(cfg.room, "*****");
+  cfg.conflag = 0;
+
+  strcpy(cfg.myCall, DEFAULT_CALL);
+  strcpy(cfg.wifi_ssid, DEFAULT_SSID);
+  strcpy(cfg.wifi_password, DEFAULT_WIFI_PASSWORD);
+  strcpy(cfg.mqtt_userid, DEFAULT_MQTT_USERNAME);
+  strcpy(cfg.mqtt_password, DEFAULT_MQTT_PASSWORD);
+  strcpy(cfg.mqtt_server, DEFAULT_SERVER_ADDRESS);
+  strcpy(cfg.room, DEFAULT_MQTT_ROOM);
   setRunningConfig();
   saveConfig();
 }
@@ -1349,6 +1385,8 @@ void printConfig(unsigned char ee)  // debugging only; not called
   Serial.println(cfg.textColor);
   Serial.print("  bgColor: ");
   Serial.println(cfg.bgColor);
+  Serial.print("  Connection Flag: ");
+  Serial.println(cfg.conflag);
   Serial.print("  wifi_ssid: ");
   Serial.println(cfg.wifi_ssid);
   Serial.print("  wifi_password: ");
@@ -1459,7 +1497,7 @@ void checkConfig(void)  // ensure config settings are valid
 
   if (!isAlphaNumeric(myCall[0])) {  // validate callsign
     Serial.println("Invalid myCall. Resetting");
-    strcpy(myCall, "W8BH");
+    strcpy(myCall, DEFAULT_CALL);
     changed = true;
   }
 
@@ -1504,7 +1542,7 @@ void useDefaults()  // if things get messed up...
   kochLevel = 1;
   usePaddles = true;
   xWordSpaces = 0;
-  strcpy(myCall, "W8BH");
+  strcpy(myCall, DEFAULT_CALL);
   keyerMode = IAMBIC_B;
   brightness = 100;
   textColor = TEXTCOLOR;

@@ -6,7 +6,9 @@
 #include "network.h"
 
 // Added by VE3OOI
-#define MIN_STRING 2  // String must be at least 2 characters in length. Error checking for null input
+#define MIN_STRING \
+  2  // String must be at least 2 characters in length. Error checking for null
+     // input
 #define MAX_SERVER_STRING 40  // Maximum string for dns server name
 #define MAX_CHAR_STRING 30    // Maximum string for various string definations
 #define MAX_SSID_STRING 50    // Maximum string for SSID and SSID password
@@ -14,6 +16,14 @@
 #define MAX_CALLSIGN_STRING 10  // Maximum string for call sign
 #define DEFAULT_EEPROM_ADDRESS \
   0  // Starting address for EEPROM configuration strut
+
+#define DEFAULT_CALL "W8BH"
+#define DEFAULT_SSID "****"
+#define DEFAULT_WIFI_PASSWORD "****"
+#define DEFAULT_MQTT_USERNAME "****"
+#define DEFAULT_MQTT_PASSWORD "****"
+#define DEFAULT_SERVER_ADDRESS "****"
+#define DEFAULT_MQTT_ROOM "****"
 
 // Added by VE3OOI for UART CLI
 // Note: main.h needs to be loaded before any other h file AND must be loaded in
@@ -101,22 +111,24 @@
 // Main Strut containing configuration data
 typedef struct {
   unsigned char flag;
-  int charSpeed;    // speed at which characters are sent, in WPM
-  int codeSpeed;    // overall code speed, in WPM
-  int pitch;        // frequency of audio output, in Hz
-  bool usePaddles;  // if true, using paddles; if false, straight key
-  int ditPaddle;    // digital pin attached to dit paddle
-  int dahPaddle;    // digital pin attached to dah paddle
-  int kochLevel;    // current Koch lesson #
-  int xWordSpaces;  // extra spaces between words
-  int keyerMode;    // current keyer mode
-  int startItem;    // startup activity.  0 = main menu
-  int brightness;   // backlight level (range 0-100%)
-  int score;        // copy challange score
-  int hits;         // copy challange correct #
-  int misses;       // copy channange incorrect #
-  int textColor;    // foreground (text) color
-  int bgColor;      // background (screen) color
+  int charSpeed;          // speed at which characters are sent, in WPM
+  int codeSpeed;          // overall code speed, in WPM
+  int pitch;              // frequency of audio output, in Hz
+  bool usePaddles;        // if true, using paddles; if false, straight key
+  int ditPaddle;          // digital pin attached to dit paddle
+  int dahPaddle;          // digital pin attached to dah paddle
+  int kochLevel;          // current Koch lesson #
+  int xWordSpaces;        // extra spaces between words
+  int keyerMode;          // current keyer mode
+  int startItem;          // startup activity.  0 = main menu
+  int brightness;         // backlight level (range 0-100%)
+  int score;              // copy challange score
+  int hits;               // copy challange correct #
+  int misses;             // copy channange incorrect #
+  int textColor;          // foreground (text) color
+  int bgColor;            // background (screen) color
+  unsigned char conflag;  // connection status -  this is volotile and does not
+                          // really belong here.
   char myCall[MAX_CALLSIGN_STRING];
   char wifi_ssid[MAX_SSID_STRING];
   char wifi_password[MAX_SSID_STRING];

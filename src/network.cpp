@@ -4,23 +4,15 @@
 // Added by VE3OOI
 #include <PubSubClient.h>
 
+#include "UART.h"  // VE3OOI Serial Interface Routines (TTY Commands)
 #include "main.h"
 #include "network.h"
-#include "UART.h"  // VE3OOI Serial Interface Routines (TTY Commands)
 
 // Added by VE3OOI
-extern char myCall[10];   // Defined in main.cpp
-extern TUTOR_STRUT cfg;   // Defined in main.cpp
-
-const char *wifi_ssid = "IKILLU_SLOW";
-const char *wifi_password = "feedface012345678910111213";
-const char *mqtt_userid = "user1";
-const char *mqtt_password = "1234";
-const char *mqtt_server = "ve3ooi.ddns.net";
+extern char myCall[10];  // Defined in main.cpp
+extern TUTOR_STRUT cfg;  // Defined in main.cpp
 
 char localid[10];
-const char *room = "morsetutor";
-unsigned char conflag = 0;  // Wireless connection Status
 char tbuf[MAXBUFLEN],
     rbuf[MAXBUFLEN];  // send receive MQTT buffer
 
@@ -51,11 +43,11 @@ char deQueue() {
 
 // Modified by VE3OOI
 void sendWireless(uint8_t data) {
-  if (conflag & SRV_CONNECTED) {
+  if (cfg.conflag & SRV_CONNECTED) {
     memset(tbuf, 0,
            sizeof(tbuf));  // Flush string.  Ensure it NULL terminated string
     sprintf(tbuf, "%s:%c", localid, data);
-    client.publish(room, (char *)tbuf, strlen(tbuf));
+    client.publish(cfg.room, (char *)tbuf, strlen(tbuf));
     Serial.print("Sending MQTT message: ");
     Serial.println((char *)tbuf);
   } else {
@@ -70,7 +62,7 @@ void closeWireless() {
   client.disconnect();
   Serial.println("Disconnected from MQTT");
   WiFi.disconnect();
-  conflag = 0;
+  cfg.conflag = 0;
   Serial.println("Wireless now closed");
 }
 
@@ -79,11 +71,11 @@ void initWireless() {
   Serial.println("\r\n\r\nMQTT Sensor v0.1 Initialization\r\n");
   Serial.println();
   Serial.print("Connecting to ");
-  Serial.println(wifi_ssid);
+  Serial.println(cfg.wifi_ssid);
 
-  WiFi.begin(wifi_ssid, wifi_password);
+  WiFi.begin(cfg.wifi_ssid, cfg.wifi_password);
 
-  conflag = 0;
+  cfg.conflag = 0;
   int timeout = 0;
   while (WiFi.status() != WL_CONNECTED && timeout < WIFI_TIMEOUT) {
     Serial.print(".");
@@ -94,12 +86,12 @@ void initWireless() {
   Serial.println();
   if (WiFi.status() != WL_CONNECTED) {
     Serial.print("Error Connecting to ");
-    Serial.println(wifi_ssid);
-    conflag = 0;
+    Serial.println(cfg.wifi_ssid);
+    cfg.conflag = 0;
     return;
   }
 
-  conflag |= AP_CONNECTED;
+  cfg.conflag |= AP_CONNECTED;
   Serial.println("WiFi connected");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
@@ -116,7 +108,7 @@ void initWireless() {
 
   Serial.println("Resolving MQTT hostname...");
   while (serverIP.toString() == "0.0.0.0" && timeout < 10) {
-    WiFi.hostByName(mqtt_server, serverIP);
+    WiFi.hostByName(cfg.mqtt_server, serverIP);
     timeout++;
     delay(250);
   }
@@ -124,10 +116,10 @@ void initWireless() {
   if (serverIP.toString() != "0.0.0.0") {
     Serial.print("MQTT host address resolved:");
     Serial.println(serverIP.toString());
-    conflag |= DNS_CONNECTED;
+    cfg.conflag |= DNS_CONNECTED;
   } else {
     Serial.println("Error resolving MQTT hostname via DHCP provided DNS");
-    conflag = 0;
+    cfg.conflag = 0;
     return;
   }
 
@@ -143,19 +135,19 @@ void initWireless() {
     sprintf(localid, "%c%c%c", (char)random(65, 90), (char)random(65, 90),
             (char)random(65, 90));
 
-    if (client.connect(localid, mqtt_userid, mqtt_password)) {
+    if (client.connect(localid, cfg.mqtt_userid, cfg.mqtt_password)) {
       memset(tbuf, 0,
              sizeof(tbuf));  // Flush string.  Ensure it NULL terminated string
       // Announce arrival
       sprintf(tbuf, "%s:%s-%s", myCall, localid, "Online");
 
-      client.publish(room, (char *)tbuf, strlen(tbuf));
+      client.publish(cfg.room, (char *)tbuf, strlen(tbuf));
       delay(500);  // Allow message to reach device.  To allow receive buffer to
                    // be processed
 
       // Subscribe to topic (which i call the "room")
-      client.subscribe(room);
-      conflag |= SRV_CONNECTED;
+      client.subscribe(cfg.room);
+      cfg.conflag |= SRV_CONNECTED;
 
       // Send CQ
       sendWireless(' ');
@@ -169,7 +161,7 @@ void initWireless() {
     } else {
       Serial.print("Error Connecting to MQTT Server: ");
       Serial.println(client.state());
-      conflag = 0;
+      cfg.conflag = 0;
       delay(5000);
       return;
     }
