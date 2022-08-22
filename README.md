@@ -6,7 +6,7 @@ This documents the configuration of the W8BH morse code tutor running on an ESP3
 	•	I prefer to use PlatformIO and my github page has the files for PlatformIO. You need to import the project.  
 		See “Morse Tutor Arduino.docx” file for guidance
 ```
-2.	Once the device boot up properly and the paddle or key is working. See Bruce Halls website for information on how to use the morse tutor. His instructions for 2-way communication is similar to this new code except this is done across the internet
+2.	Once the device boot up properly and the paddle or key is working. See Bruce Halls website for information on how to use the morse tutor. His instructions for 2-way communication is similar to this new code except this is done across the internet. For details on how the new firmware works see [Firmware Update](https://youtu.be/wOhMsPQrY3k/).
 ```	
 	•	For details on how the new firmware works see [Firmware Update](https://youtu.be/wOhMsPQrY3k/)
 ```
