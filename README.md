@@ -11,52 +11,64 @@ CLI v0.1 (c)VE3OOI
 :>
 
 5.	Here is a list of the commands available:
-•	      C - enter callsign
+  •	      C - enter callsign
 
-•	      D - dump eeprom
+  •	      D - dump eeprom
 
-•	      E - erase eeprom (DANGERIOUS)
+  •	      E - erase eeprom (DANGERIOUS)
 
-•	      I - init eeprom with defaults
+  •	      I - init eeprom with defaults
 
-•	      L - load eeprom & run
+  •	      L - load eeprom & run
 
-•	      M - enter server name
+  •	      M - enter server name
 
-•	      P - print running config
+  •	      P - print running config
 
 •	      P E - print eeprom config
 
 •	      R - enter room name
 
-•	      S - save running config to eeprom
+  •	      S - save running config to eeprom
 
-•	      U U - enter MQTT username
+  •	      U U - enter MQTT username
 
-•	      U P - enter MQTT password
+  •	      U P - enter MQTT password
 
-•	      W S - enter Wi-Fi SSID
+  •	      W S - enter Wi-Fi SSID
 
-•	      W P - enter Wi-Fi password
+  •	      W P - enter Wi-Fi password
 
 6.	You will need to enter your callsign, server name, room name, username, password and of course WIFI SSID and password.
 7.	To enter your call sign simply enter C and press return. Then enter your callsign at the prompt. Here is an example:
-:> C
-Current: W8BH
-Call Sign: VE3OOI
-Changing: W8BH to: VE3OOI
+  :> C
+
+  Current: W8BH 
+
+  Call Sign: VE3OOI
+
+  Changing: W8BH to: VE3OOI
+
 
 8.	To enter the server’s name, enter M and press return. Enter ve3ooi.ddns.net as the server name
-:> M
-Current: ****
-Server DNS Name: ve3ooi.ddns.new
-Changing: **** to: ve3ooi.ddns.new
+  :> M
+
+  Current: ****
+
+  Server DNS Name: ve3ooi.ddns.new
+
+  Changing: **** to: ve3ooi.ddns.new
+
 
 9.	The room name is the group name.  Anyone that uses this name will receive and send morse to each other.  You can use any name you want.  If two using have different room names, then will not communicate.  To enter the room name, enter R and press return. Enter moresetutot (the default).
-:> R
-Current: ****
-Room Name: morsetutor
-Changing: **** to: morsetutor
+  :> R
+
+  Current: ****
+
+  Room Name: morsetutor
+
+  Changing: **** to: morsetutor
+
 
 10.	Next enter the username and password.  Currently there are two usernames and passwords.  Contact me for this information (drajnauth@rogers.com). 
 Here is an example. PLEASE DO NOT USE THIS. It will not work!
