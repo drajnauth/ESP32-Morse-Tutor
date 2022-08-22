@@ -12,19 +12,33 @@ CLI v0.1 (c)VE3OOI
 
 5.	Here is a list of the commands available:
 •	      C - enter callsign
+
 •	      D - dump eeprom
+
 •	      E - erase eeprom (DANGERIOUS)
+
 •	      I - init eeprom with defaults
+
 •	      L - load eeprom & run
+
 •	      M - enter server name
+
 •	      P - print running config
+
 •	      P E - print eeprom config
+
 •	      R - enter room name
+
 •	      S - save running config to eeprom
+
 •	      U U - enter MQTT username
+
 •	      U P - enter MQTT password
+
 •	      W S - enter Wi-Fi SSID
+
 •	      W P - enter Wi-Fi password
+
 6.	You will need to enter your callsign, server name, room name, username, password and of course WIFI SSID and password.
 7.	To enter your call sign simply enter C and press return. Then enter your callsign at the prompt. Here is an example:
 :> C
