@@ -162,7 +162,6 @@ void initWireless() {
       Serial.print("Error Connecting to MQTT Server: ");
       Serial.println(client.state());
       cfg.conflag = 0;
-      delay(5000);
       return;
     }
   }

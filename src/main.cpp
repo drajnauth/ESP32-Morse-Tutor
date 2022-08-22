@@ -896,6 +896,11 @@ void sendFile(char *filename)  // output a file to screen & morse
   // result in a buffer overflow
   bool wireless = longPress();   // if long button press, send file wirelessly
   if (wireless) initWireless();  // start wireless
+  if (!(cfg.conflag & SRV_CONNECTED)) {
+    tft.print((char *)"Wifi Err");
+    closeWireless();
+    wireless = false;
+  }
   //    transmission
   button_pressed = false;  // reset flag for new presses
   File book = SD.open(s);  // look for book on sd card
@@ -1250,6 +1255,12 @@ void flashcards() {
 void twoWay()  // wireless QSO between units
 {
   initWireless();  // look for another unit & connect
+  if (!(cfg.conflag & SRV_CONNECTED)) {
+    tft.print((char *)"Network Err");
+    closeWireless();
+    delay(5000);
+    return;
+  }
   char oldCh = ' ';
   while (!button_pressed) {
     processMQTT();
@@ -2292,10 +2303,6 @@ void executeSerial(char *str) {
   // entered after the command. E.g. F [n] [m] would be mean "F 0 7000000" is
   // entered (no square brackets entered)
   switch (commands[0]) {
-    case 'E':  // Erase EEPROM
-      clearMem();
-      break;
-
     case 'C':  // Get call sign
       Serial.print("Current: ");
       Serial.println(cfg.myCall);
@@ -2319,17 +2326,22 @@ void executeSerial(char *str) {
       dumpMem();
       break;
 
+    case 'E':  // Erase EEPROM
+      clearMem();
+      break;
+
     case 'H':  // Help
       Serial.println("Help:");
-      Serial.println("A [E|N|P|D]");
-      Serial.println("E - erase eeprom");
+      Serial.println("C - enter callsign");
       Serial.println("D - dump eeprom");
-      Serial.println("I - init eeprom");
+      Serial.println("E - erase eeprom");
+      Serial.println("I - init eeprom with defaults");
+      Serial.println("L - load eeprom & run");
       Serial.println("M - enter server name");
-      Serial.println("P - print current config");
+      Serial.println("P - print running config");
       Serial.println("P E - print eeprom config");
-      Serial.println("M - enter room name");
-      Serial.println("S - save current config");
+      Serial.println("R - enter room name");
+      Serial.println("S - save running config to eeprom");
       Serial.println("U U - enter MQTT username");
       Serial.println("U P - enter MQTT password");
       Serial.println("W S - enter Wi-Fi SSID");
@@ -2392,7 +2404,7 @@ void executeSerial(char *str) {
       saveConfig();
       break;
 
-    case 'U':  // Print memory Config
+    case 'U':  // Enter user info
       if (commands[1] == 'U') {
         Serial.print("Current: ");
         Serial.println(cfg.mqtt_userid);
