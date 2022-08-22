@@ -3,11 +3,12 @@
 This documents the configuration of the W8BH morse code tutor running on an ESP32 microcontroller that support WiFi.  This is NOT applicable to the STM32 version.
 1.	Load the new firmware onto the ESP32.  If you have not done this before, you are in for a ride.  If you have not loaded firmware to the ESP32 then I strongly recommend that you get someone that has done it to do it for you.
 ```
-	•	I prefer to use PlatformIO and my github page has the files for PlatformIO. You need to import the project.  See “Morse Tutor Arduino.docx” file for guidance
+	•	I prefer to use PlatformIO and my github page has the files for PlatformIO. You need to import the project.  
+		See “Morse Tutor Arduino.docx” file for guidance
 ```
 2.	Once the device boot up properly and the paddle or key is working. See Bruce Halls website for information on how to use the morse tutor. His instructions for 2-way communication is similar to this new code except this is done across the internet
 ```	
-	•	For details on how the new firmware works see [Update to W8BH Morse Tutor Firmware](https://youtu.be/wOhMsPQrY3k)
+	•	For details on how the new firmware works see [Firmware Update](https://youtu.be/wOhMsPQrY3k/)
 ```
 3.	You will need to ensure your Morse Tutor is connect to your PC’s USB and you can open a TTY session.  Arduino calls this the `Serial Monitor`.  The port must be set to 115200 bps.  
 4.	Navigate, using the rotatory encoded to the `Config` option and then select `CLI` to enable CLI commands to be entered using the TTY interface.  The following should appear on the console:
