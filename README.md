@@ -3,7 +3,7 @@
 This documents the configuration of the W8BH morse code tutor running on an ESP32 microcontroller that support WiFi.  This is NOT applicable to the STM32 version.
 1.	Load the new firmware onto the ESP32.  If you have not done this before, you are in for a ride.  If you have not loaded firmware to the ESP32 then I strongly recommend that you get someone that has done it to do it for you.
 
-	*I prefer to use PlatformIO and my github page has the files for PlatformIO. You need to import the project.  
+	* I prefer to use PlatformIO and my github page has the files for PlatformIO. You need to import the project.  
 		See “Morse Tutor Arduino.docx” file for guidance
 
 2.	Once the device boot up properly and the paddle or key is working. See Bruce Halls website for information on how to use the morse tutor. His instructions for 2-way communication is similar to this new code except this is done across the internet. For details on how the new firmware works see [Firmware Update YouTube Video](https://youtu.be/wOhMsPQrY3k/).
@@ -19,33 +19,33 @@ This documents the configuration of the W8BH morse code tutor running on an ESP3
 ```
 5.	Here is a list of the commands available:
 ```
-  	• C - enter callsign
+  	* C - enter callsign
 
-  	• D - dump eeprom
+  	* D - dump eeprom
 
-  	• E - erase eeprom (DANGERIOUS)
+  	* E - erase eeprom (DANGERIOUS)
 
-  	• I - init eeprom with defaults
+  	* I - init eeprom with defaults
 
-  	• L - load eeprom & run
+  	* L - load eeprom & run
 
-  	• M - enter server name
+  	* M - enter server name
 
-  	• P - print running config
+  	* P - print running config
 
-	• P E - print eeprom config
+	* P E - print eeprom config
 
-	• R - enter room name
+	* R - enter room name
 
-  	• S - save running config to eeprom
+  	* S - save running config to eeprom
 
-  	•  U U - enter MQTT username
+  	*  U U - enter MQTT username
 
-  	• U P - enter MQTT password
+  	* U P - enter MQTT password
 
-  	• W S - enter Wi-Fi SSID
+  	* W S - enter Wi-Fi SSID
 
-  	• W P - enter Wi-Fi password
+  	* W P - enter Wi-Fi password
 ```
 6.	You will need to enter your callsign, server name, room name, username, password and of course WIFI SSID and password.
 7.	To enter your call sign simply enter C and press return. Then enter your callsign at the prompt. Here is an example:
