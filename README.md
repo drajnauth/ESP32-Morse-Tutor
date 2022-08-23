@@ -57,32 +57,32 @@ This documents the configuration of the W8BH morse code tutor running on an ESP3
 ```
 8.	To enter the server’s name, enter M and press return. Enter ve3ooi.ddns.net as the server name
 ```  
-  	:> **M**
+  	:> M
 
   	Current: ****
 
-  	Server DNS Name: **ve3ooi.ddns.new**
+  	Server DNS Name: ve3ooi.ddns.new
 
   	Changing: **** to: ve3ooi.ddns.new
 ```
 9.The room name is the group name.  Anyone that uses this name will receive and send morse to each other.  You can use any name you want.  If two using have different room names, then will not communicate.  To enter the room name, enter R and press return. Enter moresetutot (the default).
 ```
-  	:> **R
+  	:> R
 
   	Current: ****
 
-  	Room Name: **morsetutor**
+  	Room Name: morsetutor
 
   	Changing: **** to: morsetutor
 ```
 10.	Next enter the username and password.  Currently there are two usernames and passwords.  Contact me for this information (drajnauth@rogers.com). 
 Here is an example. PLEASE DO NOT USE THIS. It will not work!
 ```
-	:> **U U**
+	:> U U
 
 	Current: ****
 
-	Enter username: **dummy**
+	Enter username: dummy
 
 	Changing: **** to: dummy
 ```
