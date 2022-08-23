@@ -67,7 +67,7 @@ This documents the configuration of the W8BH morse code tutor running on an ESP3
 
   	Changing: **** to: mqtt.ve3ooi.ca
 ```
-9.The room name (MQTT Topic) is the group name that can communicate together.  All tutors that use this name will receive and send morse to each other.  You can use any name you want.  However, all tutors you want to communicated with must also use this name.  To enter the room name, enter `R` and press return. Enter `moresetutot` (the default).
+9.The room name (MQTT Topic) is the group name that can communicate together.  All tutors that use this name will receive and send morse to each other.  You can use any name you want.  However, all tutors you want to communicate with must also use this name.  To enter the room name, enter `R` and press return. Enter `moresetutot` (the default).
 ```
   	:> R
 
