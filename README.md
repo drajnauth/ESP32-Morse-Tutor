@@ -57,15 +57,15 @@ This documents the configuration of the W8BH morse code tutor running on an ESP3
   	
 	Changing: W8BH to: VE3OOI
 ```
-8.	To enter the server’s name, enter `M` and press return. Enter `ve3ooi.ddns.net` as the server name
+8.	To enter the server’s name, enter `M` and press return. Enter `mqtt.ve3ooi.ca` as the server name
 ```  
   	:> M
 
   	Current: ****
 
-  	Server DNS Name: ve3ooi.ddns.new
+  	Server DNS Name: mqtt.ve3ooi.ca
 
-  	Changing: **** to: ve3ooi.ddns.new
+  	Changing: **** to: mqtt.ve3ooi.ca
 ```
 9.The room name (MQTT Topic) is the group name that can communicate together.  All tutors that use this name will receive and send morse to each other.  You can use any name you want.  However, all tutors you want to communicated with must also use this name.  To enter the room name, enter `R` and press return. Enter `moresetutot` (the default).
 ```
