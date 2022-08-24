@@ -2342,6 +2342,7 @@ void executeSerial(char *str) {
       Serial.println("P E - print eeprom config");
       Serial.println("R - enter room name");
       Serial.println("S - save running config to eeprom");
+      Serial.println("T - test network connection");
       Serial.println("U U - enter MQTT username");
       Serial.println("U P - enter MQTT password");
       Serial.println("W S - enter Wi-Fi SSID");
@@ -2404,6 +2405,18 @@ void executeSerial(char *str) {
       saveConfig();
       break;
 
+    case 'T':  // Test WiFi and MQTT Connection
+      Serial.print("Testing WiFi and MQTT Connection");
+      initWireless();  // look for another unit & connect
+      if (!(cfg.conflag & SRV_CONNECTED)) {
+        Serial.println("FAILURE! Please check config");
+      } else {
+        Serial.println("SUCESS!!!  Don't forget to save config");
+      }
+      Serial.println("Closing WiFi...");
+      closeWireless();
+      break;
+
     case 'U':  // Enter user info
       if (commands[1] == 'U') {
         Serial.print("Current: ");
@@ -2448,6 +2461,7 @@ void executeSerial(char *str) {
         Serial.print("Current: ");
         Serial.println(cfg.wifi_password);
         readSerialLine((char *)"Enter password: ", MAX_CHAR_STRING);
+
       } else {
         Serial.println("Usage: 'W S' or 'W P'");
         break;
