@@ -117,6 +117,48 @@ Here is an example. PLEASE DO NOT USE THIS. It will not work!
 	
 	Changing: **** to: MYPASSWORD
 ```
-12.	Finally, enter the `S` command to save the information to the EEPROM.  If you don't do this, all the information you entered will be lost next time to restart the tutor.  You can print out the configuration information with the `P` command or the `P E` command.  The `P` command shows what configuration that the tutor is currently running, and the `P E` command show what is stored in EEPROM.  The configuration stored in EEPROM is loaded every time the tutor is restarted.
-13.	Once the tutor is configured you can navigate to the `Send` menu and then select `Two-Way` to enable communication with anyone else that is using the room you defined.
+12.	Before saving the configuration, you should test it with the `T` command.  A sample output is enclosed below. If you see the `SUCESS!!!  Don't forget to save config` message displayed, then the configuration is working. If you get a `FAILURE!!!` message, then check and reenter your configuration.  Use the `P` command to view the configuration.	
+```
+	:> T
+	
+	Testing WiFi and MQTT Connection
+	
+	MQTT Sensor v0.1 Initialization
+	
+	Connecting to IKILLU_SLOW....
+	
+	WiFi connected
+	
+	IP address: 192.168.1.72
+	
+	DNS IP address: 149.112.121.20
+	
+	Gateway IP address: 192.168.1.1
+	
+	Resolving MQTT hostname...
+	
+	MQTT host address resolved:132.145.106.38
+	
+	Attempting MQTT connection...
+	
+	Sending MQTT message: KMV: 
+	
+	Sending MQTT message: KMV:c
+	
+	Sending MQTT message: KMV:q
+	
+	Sending MQTT message: KMV:
+	
+	MQTT Connected
+	
+	SUCESS!!!  Don't forget to save config
+	
+	Closing WiFi...
+	
+	Disconnected from MQTT
+	
+	Wireless now closed
+```
+14.	Finally, enter the `S` command to save the information to the EEPROM.  If you don't do this, all the information you entered will be lost next time to restart the tutor.  You can print out the configuration information with the `P` command or the `P E` command.  The `P` command shows what configuration that the tutor is currently running, and the `P E` command show what is stored in EEPROM.  The configuration stored in EEPROM is loaded every time the tutor is restarted.
+15.	Once the tutor is configured you can navigate to the `Send` menu and then select `Two-Way` to enable communication with anyone else that is using the room you defined.
 
