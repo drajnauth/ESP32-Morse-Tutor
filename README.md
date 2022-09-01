@@ -97,7 +97,7 @@ Here is an example. PLEASE DO NOT USE THIS. It will not work!
 
 	Changing: **** to: hey here is my password
 ```
-11.	Repeat similar for WiFi SSID and password.  Enter information associated with your local WiFi
+11.	Repeat similar for WiFi SSID and password.  Enter information associated with your local WiFi.  Avoid using spaces and special characters.
 Here is an example. PLEASE DO NOT USE THIS. It will not work!
 ```
 	:> W S
@@ -161,4 +161,15 @@ Here is an example. PLEASE DO NOT USE THIS. It will not work!
 ```
 14.	Finally, enter the `S` command to save the information to the EEPROM.  If you don't do this, all the information you entered will be lost next time to restart the tutor.  You can print out the configuration information with the `P` command or the `P E` command.  The `P` command shows what configuration that the tutor is currently running, and the `P E` command show what is stored in EEPROM.  The configuration stored in EEPROM is loaded every time the tutor is restarted.
 15.	Once the tutor is configured you can navigate to the `Send` menu and then select `Two-Way` to enable communication with anyone else that is using the room you defined.
+
+Note: The CLI is VERY primitive and is not like a PC and Linux CLI.  For example, backspace/delete does not work.  Spaces and special characters may not be entered properly.  If your entry does not work you may need to update the default config parameters in main.h, recompile and load the code.  Then use the `I` command to use defaults and use the `S` command to save to EEPROM.  Relevent defines main.h are shown below
+```
+	#define DEFAULT_CALL "W8BH"
+	#define DEFAULT_SSID "****"
+	#define DEFAULT_WIFI_PASSWORD "****"
+	#define DEFAULT_MQTT_USERNAME "****"
+	#define DEFAULT_MQTT_PASSWORD "****"
+	#define DEFAULT_SERVER_ADDRESS "****"
+	#define DEFAULT_MQTT_ROOM "****"
+```
 
